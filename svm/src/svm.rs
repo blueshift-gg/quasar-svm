@@ -137,6 +137,7 @@ pub struct QuasarSvm {
     pub program_cache: ProgramCache,
     pub sysvars: Sysvars,
     accounts: HashMap<Pubkey, SolanaAccount>,
+    runtime_environments: ProgramRuntimeEnvironments,
 }
 
 impl Default for QuasarSvm {
@@ -157,6 +158,24 @@ impl QuasarSvm {
         let compute_budget = ComputeBudget::new_with_defaults(true, true);
         let program_cache = ProgramCache::new(&feature_set, &compute_budget);
 
+        let runtime_features = feature_set.runtime_features();
+        let execution_budget = compute_budget.to_budget();
+        let runtime_environments = ProgramRuntimeEnvironments {
+            program_runtime_v1: Arc::new(
+                create_program_runtime_environment_v1(
+                    &runtime_features,
+                    &execution_budget,
+                    false,
+                    false,
+                )
+                .unwrap(),
+            ),
+            program_runtime_v2: Arc::new(create_program_runtime_environment_v2(
+                &execution_budget,
+                false,
+            )),
+        };
+
         let svm = Self {
             compute_budget,
             feature_set,
@@ -164,6 +183,7 @@ impl QuasarSvm {
             program_cache,
             sysvars: Sysvars::default(),
             accounts: HashMap::new(),
+            runtime_environments,
         };
 
         // Load programs based on config
@@ -780,24 +800,7 @@ impl QuasarSvm {
         let mut timings = ExecuteTimings::default();
 
         let mut program_cache = self.program_cache.cache();
-        let execution_budget = self.compute_budget.to_budget();
         let runtime_features = self.feature_set.runtime_features();
-
-        let program_runtime_environments = ProgramRuntimeEnvironments {
-            program_runtime_v1: Arc::new(
-                create_program_runtime_environment_v1(
-                    &runtime_features,
-                    &execution_budget,
-                    false,
-                    false,
-                )
-                .unwrap(),
-            ),
-            program_runtime_v2: Arc::new(create_program_runtime_environment_v2(
-                &execution_budget,
-                false,
-            )),
-        };
 
         let callback = NoOpCallback;
 
@@ -809,8 +812,8 @@ impl QuasarSvm {
                 5000,
                 &callback,
                 &runtime_features,
-                &program_runtime_environments,
-                &program_runtime_environments,
+                &self.runtime_environments,
+                &self.runtime_environments,
                 sysvar_cache,
             ),
             self.logger.clone(),
