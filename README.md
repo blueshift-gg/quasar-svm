@@ -2,7 +2,7 @@
   <code>quasar-svm</code>
 </h1>
 <p align="center">
-  In-process Solana execution for Rust, Node.js, and Python.
+  In-process Solana execution for Rust, Node.js, Python, and Go.
 </p>
 
 ## Overview
@@ -22,6 +22,10 @@ npm install @blueshift-gg/quasar-svm
 
 ```bash
 pip install quasar-svm
+```
+
+```bash
+go get github.com/blueshift-gg/quasar-svm/bindings/go
 ```
 
 ## Quick Start
@@ -161,9 +165,65 @@ with QuasarSvm() as svm:
     print(f"Bob's balance: {bob_account.data[64:72]}")  # Token amount at offset 64
 ```
 
+### Go
+
+```go
+package main
+
+import (
+	"fmt"
+	"log"
+
+	"github.com/gagliardetto/solana-go"
+	"github.com/gagliardetto/solana-go/programs/token"
+	quasar "github.com/blueshift-gg/quasar-svm/bindings/go"
+)
+
+func main() {
+	svm, _ := quasar.New() // Token program loaded by default
+	defer svm.Free()
+
+	authority := solana.NewWallet().PublicKey()
+	mintAddr := solana.NewWallet().PublicKey()
+
+	mint := quasar.NewMintAccount(mintAddr, quasar.MintConfig{
+		MintAuthority: &authority,
+		Decimals:      6,
+		Supply:        10_000,
+	})
+	alice := quasar.NewTokenAccount(solana.NewWallet().PublicKey(), quasar.TokenAccountConfig{
+		Mint: mintAddr, Owner: authority, Amount: 5_000,
+	})
+	bob := quasar.NewTokenAccount(solana.NewWallet().PublicKey(), quasar.TokenAccountConfig{
+		Mint: mintAddr, Owner: solana.NewWallet().PublicKey(), Amount: 0,
+	})
+
+	// Transfer 1000 tokens using solana-go's SPL Token instruction builder
+	ix := token.NewTransferInstruction(
+		1_000,
+		alice.Address,
+		bob.Address,
+		authority,
+		nil,
+	).Build()
+
+	result, err := svm.ProcessSolanaInstruction(ix, []quasar.Account{mint, alice, bob})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("Compute units:", result.ComputeUnits)
+	for _, l := range result.Logs {
+		fmt.Println(l)
+	}
+}
+```
+
 > **TypeScript:** Native memory is freed automatically by the GC. For deterministic cleanup in tight loops, use `using vm = new QuasarSvm()` or call `vm.free()`.
 >
 > **Python:** Use context manager (`with QuasarSvm() as svm:`) for automatic cleanup.
+>
+> **Go:** Use `defer svm.Free()` for cleanup. The finalizer also handles it if `Free()` is not called explicitly.
 
 ## Documentation
 
@@ -173,6 +233,7 @@ with QuasarSvm() as svm:
 | **Python** | [bindings/python/README.md](bindings/python/README.md) | Python API using `solders` types (`Pubkey`, `Instruction`, `AccountMeta`) |
 | **web3.js** | [bindings/node/src/web3.js/README.md](bindings/node/src/web3.js/README.md) | TypeScript API using `@solana/web3.js` types (`PublicKey`, `KeyedAccountInfo`) |
 | **kit** | [bindings/node/src/kit/README.md](bindings/node/src/kit/README.md) | TypeScript API using `@solana/kit` types (`Address`, `Account<T>`) |
+| **Go** | [bindings/go/README.md](bindings/go/README.md) | Go API using `gagliardetto/solana-go` types (`PublicKey`) |
 
 ## Exports
 
@@ -182,6 +243,7 @@ with QuasarSvm() as svm:
 | `@blueshift-gg/quasar-svm/web3.js` | `PublicKey` | `KeyedAccount` | `@solana/web3.js` API |
 | `@blueshift-gg/quasar-svm/kit` | `Address` | `Account` | `@solana/kit` API |
 | `@blueshift-gg/quasar-svm/ffi` | — | — | Low-level native bindings |
+| `github.com/blueshift-gg/quasar-svm/bindings/go` | `solana.PublicKey` | `Account` | Go API using `solana-go` |
 
 All APIs expose the same core functionality with idiomatic types for each language. The web3.js layer additionally provides `toKeyedAccountInfo` / `fromKeyedAccountInfo` for interop with legacy code.
 
@@ -193,6 +255,7 @@ All APIs expose the same core functionality with idiomatic types for each langua
 | `quasar-svm-ffi` | `ffi/` | C-ABI wrapper for language bindings |
 | Python bindings | `bindings/python/` | Python API using `solders` for Solana types |
 | TypeScript bindings | `bindings/node/` | `web3.js` and `kit` API layers over the native engine |
+| Go bindings | `bindings/go/` | Go API using `gagliardetto/solana-go` via CGo (prebuilt libs bundled) |
 
 ## Built-in Programs
 
@@ -241,6 +304,14 @@ cargo clippy --workspace
 # TypeScript
 npm run build
 npm run build:native
+
+# Go (dev mode — links against target/release/)
+cargo build --release -p quasar-svm-ffi
+make test-go
+
+# Go (bundle prebuilt libs for distribution)
+make build-all       # builds all platforms
+make build-go-all    # copies into bindings/go/lib/
 ```
 
 ## License

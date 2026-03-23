@@ -1,10 +1,10 @@
+/.vscode
 /target
 /dist
 /.vscode
 /docs/node_modules
 /node_modules
 bindings/java
-bindings/go
 bindings/ruby
 bindings/swift
 bindings/swift/.build
@@ -26,3 +26,10 @@ bindings/python/*/__pycache__
 # Node.js bindings (dev symlinks)
 bindings/node/libquasar_svm.*
 bindings/node/quasar_svm.dll
+
+# Golang
+bindings/go/go.sum
+# Vendored static libraries and header ARE tracked — consumers need them for `go get`.
+!bindings/go/libquasar_svm_vendor/
+!bindings/go/libquasar_svm_vendor/*.a
+!bindings/go/libquasar_svm_vendor/*.h
