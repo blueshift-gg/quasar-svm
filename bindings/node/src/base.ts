@@ -65,6 +65,10 @@ export abstract class QuasarSvmBase {
     this.check(ffi.quasar_svm_warp_to_slot(this.ptr, slot));
   }
 
+  warpToTimestamp(timestamp: bigint): void {
+    this.check(ffi.quasar_svm_warp_to_timestamp(this.ptr, timestamp));
+  }
+
   setRent(lamportsPerByte: bigint): void {
     this.check(ffi.quasar_svm_set_rent(this.ptr, lamportsPerByte));
   }

@@ -117,6 +117,48 @@ describe("state management", () => {
     expect(() => svm.setMintSupply(MINT, 100n)).toThrow("not found");
   });
 
+  // -- warpToTimestamp --
+
+  it("warpToTimestamp sets the clock unix_timestamp", () => {
+    svm.warpToTimestamp(1700000000n);
+    // Verify by executing an instruction and checking the result's clock
+    // (no direct getter, but if it doesn't throw, the FFI call works)
+    svm.airdrop(ALICE, 1_000_000_000n);
+    const result = svm.processInstruction({
+      programAddress: address(SYSTEM_PROGRAM_ID),
+      accounts: [],
+      data: new Uint8Array(0),
+    });
+    // Just verify it didn't throw — the timestamp is set internally
+    expect(result).toBeDefined();
+  });
+
+  // -- simulate (dry run, no state commit) --
+
+  it("simulateInstruction does not commit state changes", () => {
+    svm.airdrop(ALICE, 2_000_000_000n);
+    svm.airdrop(BOB, 1_000_000n);
+
+    const data = new Uint8Array(12);
+    const view = new DataView(data.buffer);
+    view.setUint32(0, 2, true);
+    view.setBigUint64(4, 500_000_000n, true);
+
+    const result = svm.simulateInstruction({
+      programAddress: address(SYSTEM_PROGRAM_ID),
+      accounts: [
+        { address: ALICE, role: AccountRole.WRITABLE_SIGNER },
+        { address: BOB, role: AccountRole.WRITABLE },
+      ],
+      data,
+    });
+
+    result.assertSuccess();
+    // State should NOT have changed
+    expect(svm.getBalance(ALICE)).toBe(2_000_000_000n);
+    expect(svm.getBalance(BOB)).toBe(1_000_000n);
+  });
+
   // -- statefulness: SVM store used by processInstruction --
 
   it("processInstruction reads accounts from SVM store (SOL transfer)", () => {

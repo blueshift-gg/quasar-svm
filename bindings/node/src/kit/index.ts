@@ -121,6 +121,14 @@ export class QuasarSvm extends QuasarSvmBase {
     return this.exec(ffi.quasar_svm_process_transaction, serializeInstructions(instructions), serializeAccounts(accounts));
   }
 
+  simulateInstruction(instruction: Instruction, accounts: Account<Uint8Array>[] = []): ExecutionResult {
+    return this.exec(ffi.quasar_svm_simulate_transaction, serializeInstructions([instruction]), serializeAccounts(accounts));
+  }
+
+  simulateInstructionChain(instructions: Instruction[], accounts: Account<Uint8Array>[] = []): ExecutionResult {
+    return this.exec(ffi.quasar_svm_simulate_transaction, serializeInstructions(instructions), serializeAccounts(accounts));
+  }
+
   // ---------- Internal ----------
 
   private exec(fn: Function, ixBuf: Buffer, acctBuf: Buffer): ExecutionResult {

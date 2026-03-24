@@ -51,6 +51,8 @@ int32_t quasar_svm_set_epoch_schedule(QuasarSvm *svm,
 
 int32_t quasar_svm_set_compute_budget(QuasarSvm *svm, uint64_t max_units);
 
+int32_t quasar_svm_warp_to_timestamp(QuasarSvm *svm, int64_t timestamp);
+
 /**
  * Store an account in the SVM's account database.
  * `acct_bytes` / `acct_len`: count-prefixed serialized accounts (wire format, expects count=1).
@@ -114,6 +116,17 @@ int32_t quasar_svm_process_transaction(QuasarSvm *svm,
                                        uint64_t accounts_len,
                                        uint8_t **result_out,
                                        uint64_t *result_len_out);
+
+/**
+ * Execute multiple instructions without committing state changes (dry run).
+ */
+int32_t quasar_svm_simulate_transaction(QuasarSvm *svm,
+                                        const uint8_t *instructions,
+                                        uint64_t instructions_len,
+                                        const uint8_t *accounts,
+                                        uint64_t accounts_len,
+                                        uint8_t **result_out,
+                                        uint64_t *result_len_out);
 
 /**
  * Free a serialized result buffer previously returned by an execution function.

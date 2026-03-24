@@ -172,6 +172,18 @@ pub extern "C" fn quasar_svm_set_compute_budget(svm: *mut QuasarSvm, max_units: 
     QUASAR_OK
 }
 
+#[unsafe(no_mangle)]
+pub extern "C" fn quasar_svm_warp_to_timestamp(svm: *mut QuasarSvm, timestamp: i64) -> i32 {
+    clear_last_error();
+    if svm.is_null() {
+        set_last_error("Null pointer argument");
+        return QUASAR_ERR_NULL_POINTER;
+    }
+    let svm = unsafe { &mut *svm };
+    svm.warp_to_timestamp(timestamp);
+    QUASAR_OK
+}
+
 // ---------------------------------------------------------------------------
 // Account state management
 // ---------------------------------------------------------------------------
@@ -373,6 +385,52 @@ pub extern "C" fn quasar_svm_process_transaction(
     result_out: *mut *mut u8,
     result_len_out: *mut u64,
 ) -> i32 {
+    execute_transaction(
+        svm,
+        instructions,
+        instructions_len,
+        accounts,
+        accounts_len,
+        result_out,
+        result_len_out,
+        true,
+    )
+}
+
+/// Execute multiple instructions without committing state changes (dry run).
+#[unsafe(no_mangle)]
+pub extern "C" fn quasar_svm_simulate_transaction(
+    svm: *mut QuasarSvm,
+    instructions: *const u8,
+    instructions_len: u64,
+    accounts: *const u8,
+    accounts_len: u64,
+    result_out: *mut *mut u8,
+    result_len_out: *mut u64,
+) -> i32 {
+    execute_transaction(
+        svm,
+        instructions,
+        instructions_len,
+        accounts,
+        accounts_len,
+        result_out,
+        result_len_out,
+        false,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn execute_transaction(
+    svm: *mut QuasarSvm,
+    instructions: *const u8,
+    instructions_len: u64,
+    accounts: *const u8,
+    accounts_len: u64,
+    result_out: *mut *mut u8,
+    result_len_out: *mut u64,
+    commit: bool,
+) -> i32 {
     clear_last_error();
     if svm.is_null()
         || instructions.is_null()
@@ -408,7 +466,11 @@ pub extern "C" fn quasar_svm_process_transaction(
             .map(|(pk, a)| Account::from_pair(pk, a))
             .collect();
 
-        let exec_result = svm.process_instruction_chain(&ixs, &svm_accounts);
+        let exec_result = if commit {
+            svm.process_instruction_chain(&ixs, &svm_accounts)
+        } else {
+            svm.simulate_instruction_chain(&ixs, &svm_accounts)
+        };
         write_result_out(result_out, result_len_out, &exec_result);
         QUASAR_OK
     })) {
