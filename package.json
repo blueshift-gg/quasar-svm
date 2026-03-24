@@ -32,13 +32,13 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsdown",
     "build:native": "cargo build --release && cp target/release/libquasar_svm.* . 2>/dev/null; cp target/release/quasar_svm.dll . 2>/dev/null; true",
     "check-types": "tsc --noEmit",
+    "prepare": "tsdown",
+    "prepublishOnly": "bun run build",
     "test": "vitest run --passWithNoTests",
-    "test:watch": "vitest --passWithNoTests",
-    "prepare": "tsc",
-    "prepublishOnly": "bun run build"
+    "test:watch": "vitest --passWithNoTests"
   },
   "dependencies": {
     "@solana/accounts": "^6.2.0",
@@ -69,6 +69,7 @@
   "devDependencies": {
     "@solana/web3.js": "github:blueshift-gg/solana-web3.js#v2",
     "@types/node": "^22.13.0",
+    "tsdown": "^0.21.4",
     "typescript": "^5.9.0",
     "vitest": "^4.1.0"
   },
