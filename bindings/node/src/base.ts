@@ -96,6 +96,23 @@ export abstract class QuasarSvmBase {
     }
   }
 
+  protected execGetAccount(pubkeyBuf: Buffer): Buffer | null {
+    const ptrOut = [null as unknown];
+    const lenOut = [BigInt(0)];
+
+    const code = ffi.quasar_svm_get_account(this.ptr, pubkeyBuf, ptrOut, lenOut);
+    if (code !== 0) return null;
+
+    const resultPtr = ptrOut[0];
+    const resultLen = Number(lenOut[0]);
+    const resultBuf = Buffer.from(
+      ffi.koffi.decode(resultPtr, "uint8_t", resultLen)
+    );
+
+    ffi.quasar_result_free(resultPtr, resultLen);
+    return resultBuf;
+  }
+
   protected execRaw(fn: Function, ixBuf: Buffer, acctBuf: Buffer): Buffer {
     const ptrOut = [null as unknown];
     const lenOut = [BigInt(0)];

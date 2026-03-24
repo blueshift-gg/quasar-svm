@@ -273,6 +273,17 @@ fn program_error_to_i32(err: &ProgramError) -> i32 {
     }
 }
 
+/// Serialize a single account into the wire format (no count prefix).
+pub fn serialize_account(pubkey: &Pubkey, account: &SolanaAccount) -> Box<[u8]> {
+    let mut w = Writer::new();
+    w.write_pubkey(pubkey);
+    w.write_pubkey(&account.owner);
+    w.write_u64(account.lamports);
+    w.write_length_prefixed(&account.data);
+    w.write_bool(account.executable);
+    w.into_boxed_slice()
+}
+
 /// Serialize an `ExecutionResult` into the wire format.
 /// Returns a boxed slice suitable for handing across FFI.
 pub fn serialize_result(result: &ExecutionResult) -> Box<[u8]> {

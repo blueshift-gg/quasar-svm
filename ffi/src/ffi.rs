@@ -173,6 +173,189 @@ pub extern "C" fn quasar_svm_set_compute_budget(svm: *mut QuasarSvm, max_units: 
 }
 
 // ---------------------------------------------------------------------------
+// Account state management
+// ---------------------------------------------------------------------------
+
+/// Store an account in the SVM's account database.
+/// `acct_bytes` / `acct_len`: count-prefixed serialized accounts (wire format, expects count=1).
+#[unsafe(no_mangle)]
+pub extern "C" fn quasar_svm_set_account(
+    svm: *mut QuasarSvm,
+    acct_bytes: *const u8,
+    acct_len: u64,
+) -> i32 {
+    clear_last_error();
+    if svm.is_null() || acct_bytes.is_null() {
+        set_last_error("Null pointer argument");
+        return QUASAR_ERR_NULL_POINTER;
+    }
+    match std::panic::catch_unwind(AssertUnwindSafe(|| {
+        let svm = unsafe { &mut *svm };
+        let bytes = unsafe { slice::from_raw_parts(acct_bytes, acct_len as usize) };
+        let accts = match wire::deserialize_accounts(bytes) {
+            Ok(a) => a,
+            Err(e) => {
+                set_last_error(format!("Invalid account data: {e}"));
+                return QUASAR_ERR_EXECUTION;
+            }
+        };
+        for (pk, a) in accts {
+            svm.set_account(Account::from_pair(pk, a));
+        }
+        QUASAR_OK
+    })) {
+        Ok(code) => code,
+        Err(_) => {
+            set_last_error("Panic during set_account");
+            QUASAR_ERR_INTERNAL
+        }
+    }
+}
+
+/// Read an account from the SVM's account database.
+/// On success, writes a serialized account (no count prefix) to `result_out` / `result_len_out`.
+/// Caller must free via `quasar_result_free`.
+#[unsafe(no_mangle)]
+pub extern "C" fn quasar_svm_get_account(
+    svm: *mut QuasarSvm,
+    pubkey: *const [u8; 32],
+    result_out: *mut *mut u8,
+    result_len_out: *mut u64,
+) -> i32 {
+    clear_last_error();
+    if svm.is_null() || pubkey.is_null() || result_out.is_null() || result_len_out.is_null() {
+        set_last_error("Null pointer argument");
+        return QUASAR_ERR_NULL_POINTER;
+    }
+    match std::panic::catch_unwind(AssertUnwindSafe(|| {
+        let svm = unsafe { &*svm };
+        let pk = solana_pubkey::Pubkey::new_from_array(unsafe { *pubkey });
+        match svm.get_account(&pk) {
+            Some(account) => {
+                let (pk, solana_acct) = account.to_pair();
+                let serialized = wire::serialize_account(&pk, &solana_acct);
+                let len = serialized.len();
+                let ptr = Box::into_raw(serialized) as *mut u8;
+                unsafe {
+                    *result_out = ptr;
+                    *result_len_out = len as u64;
+                }
+                QUASAR_OK
+            }
+            None => {
+                set_last_error(format!("Account {pk} not found"));
+                QUASAR_ERR_EXECUTION
+            }
+        }
+    })) {
+        Ok(code) => code,
+        Err(_) => {
+            set_last_error("Panic during get_account");
+            QUASAR_ERR_INTERNAL
+        }
+    }
+}
+
+/// Airdrop lamports to an account, creating it if it doesn't exist.
+#[unsafe(no_mangle)]
+pub extern "C" fn quasar_svm_airdrop(
+    svm: *mut QuasarSvm,
+    pubkey: *const [u8; 32],
+    lamports: u64,
+) -> i32 {
+    clear_last_error();
+    if svm.is_null() || pubkey.is_null() {
+        set_last_error("Null pointer argument");
+        return QUASAR_ERR_NULL_POINTER;
+    }
+    let svm = unsafe { &mut *svm };
+    let pk = solana_pubkey::Pubkey::new_from_array(unsafe { *pubkey });
+    svm.airdrop(&pk, lamports);
+    QUASAR_OK
+}
+
+/// Get the lamport balance of an account. Writes 0 if the account doesn't exist.
+#[unsafe(no_mangle)]
+pub extern "C" fn quasar_svm_get_balance(
+    svm: *mut QuasarSvm,
+    pubkey: *const [u8; 32],
+    out_lamports: *mut u64,
+) -> i32 {
+    clear_last_error();
+    if svm.is_null() || pubkey.is_null() || out_lamports.is_null() {
+        set_last_error("Null pointer argument");
+        return QUASAR_ERR_NULL_POINTER;
+    }
+    let svm = unsafe { &*svm };
+    let pk = solana_pubkey::Pubkey::new_from_array(unsafe { *pubkey });
+    let balance = svm.get_account(&pk).map_or(0, |a| a.lamports);
+    unsafe { *out_lamports = balance };
+    QUASAR_OK
+}
+
+/// Create a rent-exempt account with the given space and owner.
+#[unsafe(no_mangle)]
+pub extern "C" fn quasar_svm_create_account(
+    svm: *mut QuasarSvm,
+    pubkey: *const [u8; 32],
+    space: u64,
+    owner: *const [u8; 32],
+) -> i32 {
+    clear_last_error();
+    if svm.is_null() || pubkey.is_null() || owner.is_null() {
+        set_last_error("Null pointer argument");
+        return QUASAR_ERR_NULL_POINTER;
+    }
+    let svm = unsafe { &mut *svm };
+    let pk = solana_pubkey::Pubkey::new_from_array(unsafe { *pubkey });
+    let own = solana_pubkey::Pubkey::new_from_array(unsafe { *owner });
+    svm.create_account(&pk, space as usize, &own);
+    QUASAR_OK
+}
+
+/// Set the token balance of an existing SPL Token account.
+/// Note: the underlying Rust method panics on invalid accounts. With `panic="abort"`,
+/// `catch_unwind` cannot intercept this — so callers must ensure the account exists
+/// and is a valid SPL Token account before calling.
+#[unsafe(no_mangle)]
+pub extern "C" fn quasar_svm_set_token_balance(
+    svm: *mut QuasarSvm,
+    pubkey: *const [u8; 32],
+    amount: u64,
+) -> i32 {
+    clear_last_error();
+    if svm.is_null() || pubkey.is_null() {
+        set_last_error("Null pointer argument");
+        return QUASAR_ERR_NULL_POINTER;
+    }
+    let svm = unsafe { &mut *svm };
+    let pk = solana_pubkey::Pubkey::new_from_array(unsafe { *pubkey });
+    svm.set_token_balance(&pk, amount);
+    QUASAR_OK
+}
+
+/// Set the supply of an existing SPL Mint account.
+/// Note: the underlying Rust method panics on invalid accounts. With `panic="abort"`,
+/// `catch_unwind` cannot intercept this — so callers must ensure the account exists
+/// and is a valid SPL Mint account before calling.
+#[unsafe(no_mangle)]
+pub extern "C" fn quasar_svm_set_mint_supply(
+    svm: *mut QuasarSvm,
+    pubkey: *const [u8; 32],
+    supply: u64,
+) -> i32 {
+    clear_last_error();
+    if svm.is_null() || pubkey.is_null() {
+        set_last_error("Null pointer argument");
+        return QUASAR_ERR_NULL_POINTER;
+    }
+    let svm = unsafe { &mut *svm };
+    let pk = solana_pubkey::Pubkey::new_from_array(unsafe { *pubkey });
+    svm.set_mint_supply(&pk, supply);
+    QUASAR_OK
+}
+
+// ---------------------------------------------------------------------------
 // Execution -- serialized bytes in, serialized bytes out
 // ---------------------------------------------------------------------------
 

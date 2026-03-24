@@ -52,6 +52,56 @@ int32_t quasar_svm_set_epoch_schedule(QuasarSvm *svm,
 int32_t quasar_svm_set_compute_budget(QuasarSvm *svm, uint64_t max_units);
 
 /**
+ * Store an account in the SVM's account database.
+ * `acct_bytes` / `acct_len`: count-prefixed serialized accounts (wire format, expects count=1).
+ */
+int32_t quasar_svm_set_account(QuasarSvm *svm, const uint8_t *acct_bytes, uint64_t acct_len);
+
+/**
+ * Read an account from the SVM's account database.
+ * On success, writes a serialized account (no count prefix) to `result_out` / `result_len_out`.
+ * Caller must free via `quasar_result_free`.
+ */
+int32_t quasar_svm_get_account(QuasarSvm *svm,
+                               const uint8_t (*pubkey)[32],
+                               uint8_t **result_out,
+                               uint64_t *result_len_out);
+
+/**
+ * Airdrop lamports to an account, creating it if it doesn't exist.
+ */
+int32_t quasar_svm_airdrop(QuasarSvm *svm, const uint8_t (*pubkey)[32], uint64_t lamports);
+
+/**
+ * Get the lamport balance of an account. Writes 0 if the account doesn't exist.
+ */
+int32_t quasar_svm_get_balance(QuasarSvm *svm, const uint8_t (*pubkey)[32], uint64_t *out_lamports);
+
+/**
+ * Create a rent-exempt account with the given space and owner.
+ */
+int32_t quasar_svm_create_account(QuasarSvm *svm,
+                                  const uint8_t (*pubkey)[32],
+                                  uint64_t space,
+                                  const uint8_t (*owner)[32]);
+
+/**
+ * Set the token balance of an existing SPL Token account.
+ * Note: the underlying Rust method panics on invalid accounts. With `panic="abort"`,
+ * `catch_unwind` cannot intercept this — so callers must ensure the account exists
+ * and is a valid SPL Token account before calling.
+ */
+int32_t quasar_svm_set_token_balance(QuasarSvm *svm, const uint8_t (*pubkey)[32], uint64_t amount);
+
+/**
+ * Set the supply of an existing SPL Mint account.
+ * Note: the underlying Rust method panics on invalid accounts. With `panic="abort"`,
+ * `catch_unwind` cannot intercept this — so callers must ensure the account exists
+ * and is a valid SPL Mint account before calling.
+ */
+int32_t quasar_svm_set_mint_supply(QuasarSvm *svm, const uint8_t (*pubkey)[32], uint64_t supply);
+
+/**
  * Execute multiple instructions as a single atomic transaction.
  *
  * `instructions` / `instructions_len`: count-prefixed serialized instructions.

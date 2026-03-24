@@ -6,7 +6,7 @@ import type { Instruction } from "@solana/instructions";
 import type { MintArgs, TokenArgs } from "@solana-program/token";
 import { AccountState, getMintEncoder, getTokenEncoder, getMintSize, getTokenSize } from "@solana-program/token";
 import * as ffi from "../ffi.js";
-import { serializeInstructions, serializeAccounts } from "./wire.js";
+import { serializeInstructions, serializeAccounts, deserializeSingleAccount } from "./wire.js";
 import { deserializeResult } from "../internal/deserialize.js";
 import { ExecutionResult } from "./result.js";
 import { QuasarSvmBase, QUASAR_SVM_CONFIG_FULL, type QuasarSvmConfig } from "../base.js";
@@ -27,7 +27,7 @@ export { AccountState } from "./result.js";
 export type { MintArgs, TokenArgs } from "@solana-program/token";
 export type { ExecutionStatus, ProgramError, Clock, EpochSchedule, QuasarSvmConfig } from "../index.js";
 export { QUASAR_SVM_CONFIG_FULL } from "../index.js";
-export { SPL_TOKEN_PROGRAM_ID, SPL_TOKEN_2022_PROGRAM_ID, SPL_ASSOCIATED_TOKEN_PROGRAM_ID, LOADER_V2, LOADER_V3, LAMPORTS_PER_SOL } from "../programs.js";
+export { SPL_TOKEN_PROGRAM_ID, SPL_TOKEN_2022_PROGRAM_ID, SPL_ASSOCIATED_TOKEN_PROGRAM_ID, SYSTEM_PROGRAM_ID, LOADER_V2, LOADER_V3, LAMPORTS_PER_SOL } from "../programs.js";
 
 const addressEncoder = getAddressEncoder();
 const mintEncoder = getMintEncoder();
@@ -58,13 +58,66 @@ export class QuasarSvm extends QuasarSvmBase {
     return this;
   }
 
+  // ---------- State management ----------
+
+  setAccount(account: Account<Uint8Array>): this {
+    const buf = serializeAccounts([account]);
+    this.check(ffi.quasar_svm_set_account(this.ptr, buf, buf.length));
+    return this;
+  }
+
+  getAccount(addr: Address): Account<Uint8Array> | null {
+    const pubkeyBuf = Buffer.from(addressEncoder.encode(addr));
+    const resultBuf = this.execGetAccount(pubkeyBuf);
+    if (!resultBuf) return null;
+    return deserializeSingleAccount(resultBuf);
+  }
+
+  airdrop(addr: Address, amount: bigint): this {
+    const pubkeyBuf = Buffer.from(addressEncoder.encode(addr));
+    this.check(ffi.quasar_svm_airdrop(this.ptr, pubkeyBuf, amount));
+    return this;
+  }
+
+  getBalance(addr: Address): bigint {
+    const pubkeyBuf = Buffer.from(addressEncoder.encode(addr));
+    const out = [BigInt(0)];
+    this.check(ffi.quasar_svm_get_balance(this.ptr, pubkeyBuf, out));
+    return BigInt(out[0]);
+  }
+
+  createAccount(addr: Address, space: number, owner: Address): this {
+    const pubkeyBuf = Buffer.from(addressEncoder.encode(addr));
+    const ownerBuf = Buffer.from(addressEncoder.encode(owner));
+    this.check(ffi.quasar_svm_create_account(this.ptr, pubkeyBuf, space, ownerBuf));
+    return this;
+  }
+
+  setTokenBalance(addr: Address, amount: bigint): this {
+    const acct = this.getAccount(addr);
+    if (!acct) throw new Error(`setTokenBalance: account ${addr} not found`);
+    if (acct.data.length < 165) throw new Error(`setTokenBalance: account ${addr} is not a valid token account`);
+    const pubkeyBuf = Buffer.from(addressEncoder.encode(addr));
+    this.check(ffi.quasar_svm_set_token_balance(this.ptr, pubkeyBuf, amount));
+    return this;
+  }
+
+  setMintSupply(addr: Address, supply: bigint): this {
+    const acct = this.getAccount(addr);
+    if (!acct) throw new Error(`setMintSupply: account ${addr} not found`);
+    if (acct.data.length < 82) throw new Error(`setMintSupply: account ${addr} is not a valid mint account`);
+    const pubkeyBuf = Buffer.from(addressEncoder.encode(addr));
+    this.check(ffi.quasar_svm_set_mint_supply(this.ptr, pubkeyBuf, supply));
+    return this;
+  }
+
   // ---------- Execution ----------
 
-  processInstruction(instruction: Instruction, accounts: Account<Uint8Array>[]): ExecutionResult {
+  processInstruction(instruction: Instruction, accounts: Account<Uint8Array>[] = []): ExecutionResult {
     return this.exec(ffi.quasar_svm_process_transaction, serializeInstructions([instruction]), serializeAccounts(accounts));
   }
 
-  processInstructionChain(instructions: Instruction[], accounts: Account<Uint8Array>[]): ExecutionResult {
+  processInstructionChain(instructions: Instruction[], accounts: Account<Uint8Array>[] = []): ExecutionResult {
     return this.exec(ffi.quasar_svm_process_transaction, serializeInstructions(instructions), serializeAccounts(accounts));
   }
 

@@ -1,10 +1,13 @@
-import { getAddressEncoder } from "@solana/addresses";
+import { getAddressDecoder, getAddressEncoder } from "@solana/addresses";
+import type { Address } from "@solana/addresses";
 import type { AccountMeta } from "@solana/instructions";
 import { isSignerRole, isWritableRole } from "@solana/instructions";
 import type { Instruction } from "@solana/instructions";
 import type { Account } from "@solana/accounts";
+import { lamports } from "@solana/rpc-types";
 
 const addressEncoder = getAddressEncoder();
+const addressDecoder = getAddressDecoder();
 
 // ---------------------------------------------------------------------------
 // Serialization (JS -> wire format)
@@ -72,4 +75,31 @@ export function serializeAccounts(accounts: Account<Uint8Array>[]): Buffer {
     buf[o++] = a.executable ? 1 : 0;
   }
   return buf;
+}
+
+// ---------------------------------------------------------------------------
+// Deserialization (wire format -> JS)
+// ---------------------------------------------------------------------------
+
+export function deserializeSingleAccount(buf: Buffer): Account<Uint8Array> {
+  let o = 0;
+  const address = addressDecoder.decode(buf.subarray(o, o + 32)) as Address;
+  o += 32;
+  const programAddress = addressDecoder.decode(buf.subarray(o, o + 32)) as Address;
+  o += 32;
+  const lamps = buf.readBigUInt64LE(o);
+  o += 8;
+  const dataLen = buf.readUInt32LE(o);
+  o += 4;
+  const data = new Uint8Array(buf.subarray(o, o + dataLen));
+  o += dataLen;
+  const executable = buf[o] !== 0;
+  return {
+    address,
+    programAddress,
+    lamports: lamports(lamps),
+    data,
+    executable,
+    space: BigInt(dataLen),
+  };
 }
