@@ -268,7 +268,7 @@ pub extern "C" fn quasar_svm_get_account(
     }
 }
 
-// Simple field operations — infallible, no catch_unwind needed.
+// Simple field operations — no deserialization or allocation needed.
 
 /// Airdrop lamports to an account, creating it if it doesn't exist.
 #[unsafe(no_mangle)]
@@ -328,8 +328,7 @@ pub extern "C" fn quasar_svm_create_account(
 }
 
 /// Set the token balance of an existing SPL Token account.
-/// Note: the underlying Rust method panics on invalid accounts — callers must
-/// ensure the account exists and is a valid SPL Token account before calling.
+/// Returns `QUASAR_ERR_EXECUTION` if the account is missing or not a valid token account.
 #[unsafe(no_mangle)]
 pub extern "C" fn quasar_svm_set_token_balance(
     svm: *mut QuasarSvm,
@@ -343,13 +342,15 @@ pub extern "C" fn quasar_svm_set_token_balance(
     }
     let svm = unsafe { &mut *svm };
     let pk = solana_pubkey::Pubkey::new_from_array(unsafe { *pubkey });
-    svm.set_token_balance(&pk, amount);
+    if let Err(e) = svm.set_token_balance(&pk, amount) {
+        set_last_error(e);
+        return QUASAR_ERR_EXECUTION;
+    }
     QUASAR_OK
 }
 
 /// Set the supply of an existing SPL Mint account.
-/// Note: the underlying Rust method panics on invalid accounts — callers must
-/// ensure the account exists and is a valid SPL Mint account before calling.
+/// Returns `QUASAR_ERR_EXECUTION` if the account is missing or not a valid mint account.
 #[unsafe(no_mangle)]
 pub extern "C" fn quasar_svm_set_mint_supply(
     svm: *mut QuasarSvm,
@@ -363,7 +364,10 @@ pub extern "C" fn quasar_svm_set_mint_supply(
     }
     let svm = unsafe { &mut *svm };
     let pk = solana_pubkey::Pubkey::new_from_array(unsafe { *pubkey });
-    svm.set_mint_supply(&pk, supply);
+    if let Err(e) = svm.set_mint_supply(&pk, supply) {
+        set_last_error(e);
+        return QUASAR_ERR_EXECUTION;
+    }
     QUASAR_OK
 }
 

@@ -242,31 +242,31 @@ impl QuasarSvm {
     }
 
     /// Set the token balance (amount) of an existing token account in the store.
-    /// Panics if the account is not found or is not a valid SPL Token account.
-    pub fn set_token_balance(&mut self, address: &Pubkey, amount: u64) {
+    /// Returns an error if the account is not found or is not a valid SPL Token account.
+    pub fn set_token_balance(&mut self, address: &Pubkey, amount: u64) -> Result<(), String> {
         let acct = self
             .accounts
             .get_mut(address)
-            .unwrap_or_else(|| panic!("set_token_balance: account {address} not found"));
-        let mut token = SplTokenAccount::unpack(&acct.data).unwrap_or_else(|_| {
-            panic!("set_token_balance: account {address} is not a valid token account")
-        });
+            .ok_or_else(|| format!("set_token_balance: account {address} not found"))?;
+        let mut token = SplTokenAccount::unpack(&acct.data)
+            .map_err(|_| format!("set_token_balance: account {address} is not a valid token account"))?;
         token.amount = amount;
         SplTokenAccount::pack(token, &mut acct.data).unwrap();
+        Ok(())
     }
 
     /// Set the supply of an existing mint account in the store.
-    /// Panics if the account is not found or is not a valid SPL Mint account.
-    pub fn set_mint_supply(&mut self, address: &Pubkey, supply: u64) {
+    /// Returns an error if the account is not found or is not a valid SPL Mint account.
+    pub fn set_mint_supply(&mut self, address: &Pubkey, supply: u64) -> Result<(), String> {
         let acct = self
             .accounts
             .get_mut(address)
-            .unwrap_or_else(|| panic!("set_mint_supply: account {address} not found"));
-        let mut mint = SplMint::unpack(&acct.data).unwrap_or_else(|_| {
-            panic!("set_mint_supply: account {address} is not a valid mint account")
-        });
+            .ok_or_else(|| format!("set_mint_supply: account {address} not found"))?;
+        let mut mint = SplMint::unpack(&acct.data)
+            .map_err(|_| format!("set_mint_supply: account {address} is not a valid mint account"))?;
         mint.supply = supply;
         SplMint::pack(mint, &mut acct.data).unwrap();
+        Ok(())
     }
 
     /// Set the clock's unix_timestamp only.

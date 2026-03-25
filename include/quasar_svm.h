@@ -89,15 +89,13 @@ int32_t quasar_svm_create_account(QuasarSvm *svm,
 
 /**
  * Set the token balance of an existing SPL Token account.
- * Note: the underlying Rust method panics on invalid accounts — callers must
- * ensure the account exists and is a valid SPL Token account before calling.
+ * Returns `QUASAR_ERR_EXECUTION` if the account is missing or not a valid token account.
  */
 int32_t quasar_svm_set_token_balance(QuasarSvm *svm, const uint8_t (*pubkey)[32], uint64_t amount);
 
 /**
  * Set the supply of an existing SPL Mint account.
- * Note: the underlying Rust method panics on invalid accounts — callers must
- * ensure the account exists and is a valid SPL Mint account before calling.
+ * Returns `QUASAR_ERR_EXECUTION` if the account is missing or not a valid mint account.
  */
 int32_t quasar_svm_set_mint_supply(QuasarSvm *svm, const uint8_t (*pubkey)[32], uint64_t supply);
 
