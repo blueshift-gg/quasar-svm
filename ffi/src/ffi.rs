@@ -189,7 +189,7 @@ pub extern "C" fn quasar_svm_warp_to_timestamp(svm: *mut QuasarSvm, timestamp: i
 // ---------------------------------------------------------------------------
 
 /// Store an account in the SVM's account database.
-/// `acct_bytes` / `acct_len`: count-prefixed serialized accounts (wire format, expects count=1).
+/// `acct_bytes` / `acct_len`: count-prefixed serialized accounts (wire format).
 #[unsafe(no_mangle)]
 pub extern "C" fn quasar_svm_set_account(
     svm: *mut QuasarSvm,
@@ -268,6 +268,8 @@ pub extern "C" fn quasar_svm_get_account(
     }
 }
 
+// Simple field operations — infallible, no catch_unwind needed.
+
 /// Airdrop lamports to an account, creating it if it doesn't exist.
 #[unsafe(no_mangle)]
 pub extern "C" fn quasar_svm_airdrop(
@@ -326,9 +328,8 @@ pub extern "C" fn quasar_svm_create_account(
 }
 
 /// Set the token balance of an existing SPL Token account.
-/// Note: the underlying Rust method panics on invalid accounts. With `panic="abort"`,
-/// `catch_unwind` cannot intercept this — so callers must ensure the account exists
-/// and is a valid SPL Token account before calling.
+/// Note: the underlying Rust method panics on invalid accounts — callers must
+/// ensure the account exists and is a valid SPL Token account before calling.
 #[unsafe(no_mangle)]
 pub extern "C" fn quasar_svm_set_token_balance(
     svm: *mut QuasarSvm,
@@ -347,9 +348,8 @@ pub extern "C" fn quasar_svm_set_token_balance(
 }
 
 /// Set the supply of an existing SPL Mint account.
-/// Note: the underlying Rust method panics on invalid accounts. With `panic="abort"`,
-/// `catch_unwind` cannot intercept this — so callers must ensure the account exists
-/// and is a valid SPL Mint account before calling.
+/// Note: the underlying Rust method panics on invalid accounts — callers must
+/// ensure the account exists and is a valid SPL Mint account before calling.
 #[unsafe(no_mangle)]
 pub extern "C" fn quasar_svm_set_mint_supply(
     svm: *mut QuasarSvm,

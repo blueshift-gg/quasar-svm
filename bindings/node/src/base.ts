@@ -105,7 +105,8 @@ export abstract class QuasarSvmBase {
     const lenOut = [BigInt(0)];
 
     const code = ffi.quasar_svm_get_account(this.ptr, pubkeyBuf, ptrOut, lenOut);
-    if (code !== 0) return null;
+    if (code === -4) return null; // QUASAR_ERR_EXECUTION = account not found
+    this.check(code);
 
     const resultPtr = ptrOut[0];
     const resultLen = Number(lenOut[0]);

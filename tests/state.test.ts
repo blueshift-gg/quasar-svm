@@ -98,6 +98,11 @@ describe("state management", () => {
     expect(() => svm.setTokenBalance(TOKEN_ACCT, 100n)).toThrow("not found");
   });
 
+  it("setTokenBalance throws on non-token account", () => {
+    svm.createAccount(TOKEN_ACCT, 32, address(SYSTEM_PROGRAM_ID));
+    expect(() => svm.setTokenBalance(TOKEN_ACCT, 100n)).toThrow("not a valid token account");
+  });
+
   // -- setMintSupply --
 
   it("setMintSupply mutates mint supply", () => {
@@ -115,6 +120,11 @@ describe("state management", () => {
 
   it("setMintSupply throws on missing account", () => {
     expect(() => svm.setMintSupply(MINT, 100n)).toThrow("not found");
+  });
+
+  it("setMintSupply throws on non-mint account", () => {
+    svm.createAccount(MINT, 32, address(SYSTEM_PROGRAM_ID));
+    expect(() => svm.setMintSupply(MINT, 100n)).toThrow("not a valid mint account");
   });
 
   // -- warpToTimestamp --
@@ -152,6 +162,36 @@ describe("state management", () => {
       ],
       data,
     });
+
+    result.assertSuccess();
+    // State should NOT have changed
+    expect(svm.getBalance(ALICE)).toBe(2_000_000_000n);
+    expect(svm.getBalance(BOB)).toBe(1_000_000n);
+  });
+
+  it("simulateInstructionChain does not commit state changes", () => {
+    svm.airdrop(ALICE, 2_000_000_000n);
+    svm.airdrop(BOB, 1_000_000n);
+
+    const buildTransfer = (amount: bigint) => {
+      const data = new Uint8Array(12);
+      const view = new DataView(data.buffer);
+      view.setUint32(0, 2, true);
+      view.setBigUint64(4, amount, true);
+      return {
+        programAddress: address(SYSTEM_PROGRAM_ID),
+        accounts: [
+          { address: ALICE, role: AccountRole.WRITABLE_SIGNER },
+          { address: BOB, role: AccountRole.WRITABLE },
+        ],
+        data,
+      };
+    };
+
+    const result = svm.simulateInstructionChain([
+      buildTransfer(100_000_000n),
+      buildTransfer(200_000_000n),
+    ]);
 
     result.assertSuccess();
     // State should NOT have changed

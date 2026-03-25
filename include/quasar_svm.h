@@ -55,7 +55,7 @@ int32_t quasar_svm_warp_to_timestamp(QuasarSvm *svm, int64_t timestamp);
 
 /**
  * Store an account in the SVM's account database.
- * `acct_bytes` / `acct_len`: count-prefixed serialized accounts (wire format, expects count=1).
+ * `acct_bytes` / `acct_len`: count-prefixed serialized accounts (wire format).
  */
 int32_t quasar_svm_set_account(QuasarSvm *svm, const uint8_t *acct_bytes, uint64_t acct_len);
 
@@ -89,17 +89,15 @@ int32_t quasar_svm_create_account(QuasarSvm *svm,
 
 /**
  * Set the token balance of an existing SPL Token account.
- * Note: the underlying Rust method panics on invalid accounts. With `panic="abort"`,
- * `catch_unwind` cannot intercept this — so callers must ensure the account exists
- * and is a valid SPL Token account before calling.
+ * Note: the underlying Rust method panics on invalid accounts — callers must
+ * ensure the account exists and is a valid SPL Token account before calling.
  */
 int32_t quasar_svm_set_token_balance(QuasarSvm *svm, const uint8_t (*pubkey)[32], uint64_t amount);
 
 /**
  * Set the supply of an existing SPL Mint account.
- * Note: the underlying Rust method panics on invalid accounts. With `panic="abort"`,
- * `catch_unwind` cannot intercept this — so callers must ensure the account exists
- * and is a valid SPL Mint account before calling.
+ * Note: the underlying Rust method panics on invalid accounts — callers must
+ * ensure the account exists and is a valid SPL Mint account before calling.
  */
 int32_t quasar_svm_set_mint_supply(QuasarSvm *svm, const uint8_t (*pubkey)[32], uint64_t supply);
 

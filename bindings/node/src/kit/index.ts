@@ -93,6 +93,10 @@ export class QuasarSvm extends QuasarSvmBase {
     return this;
   }
 
+  // TODO: TS-side validation checks data length but not content. If the account
+  // has 165+ bytes of non-SPL data, the Rust SplTokenAccount::unpack will panic
+  // and abort the process (panic="abort"). Ideally the upstream SVM methods
+  // should return Result instead of panicking.
   setTokenBalance(addr: Address, amount: bigint): this {
     const acct = this.getAccount(addr);
     if (!acct) throw new Error(`setTokenBalance: account ${addr} not found`);
@@ -102,6 +106,7 @@ export class QuasarSvm extends QuasarSvmBase {
     return this;
   }
 
+  // TODO: Same panic risk as setTokenBalance — see comment above.
   setMintSupply(addr: Address, supply: bigint): this {
     const acct = this.getAccount(addr);
     if (!acct) throw new Error(`setMintSupply: account ${addr} not found`);
