@@ -483,11 +483,12 @@ fn execute_transaction(
 }
 
 // ---------------------------------------------------------------------------
-// Result deallocation
+// Buffer deallocation
 // ---------------------------------------------------------------------------
 
-/// Free a serialized result buffer previously returned by an execution function.
-/// Both the pointer and the length from the execution call must be provided.
+/// Free a buffer previously returned by an FFI function (execution results,
+/// serialized accounts from `get_account`, etc.).
+/// Both the pointer and the length must be provided.
 #[unsafe(no_mangle)]
 pub extern "C" fn quasar_result_free(result: *mut u8, result_len: u64) {
     if !result.is_null() {

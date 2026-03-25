@@ -129,18 +129,31 @@ describe("state management", () => {
 
   // -- warpToTimestamp --
 
-  it("warpToTimestamp sets the clock unix_timestamp", () => {
-    svm.warpToTimestamp(1700000000n);
-    // Verify by executing an instruction and checking the result's clock
-    // (no direct getter, but if it doesn't throw, the FFI call works)
-    svm.airdrop(ALICE, 1_000_000_000n);
+  it("warpToTimestamp does not corrupt state and survives execution", () => {
+    // Warp, then do a real SOL transfer to prove the clock change didn't
+    // corrupt the SVM. There's no way to read the clock back without a
+    // program that queries the Clock sysvar, so we verify indirectly.
+    svm.airdrop(ALICE, 2_000_000_000n);
+    svm.airdrop(BOB, 0n);
+    svm.warpToTimestamp(1_700_000_000n);
+
+    const data = new Uint8Array(12);
+    const view = new DataView(data.buffer);
+    view.setUint32(0, 2, true);
+    view.setBigUint64(4, 100n, true);
+
     const result = svm.processInstruction({
       programAddress: address(SYSTEM_PROGRAM_ID),
-      accounts: [],
-      data: new Uint8Array(0),
+      accounts: [
+        { address: ALICE, role: AccountRole.WRITABLE_SIGNER },
+        { address: BOB, role: AccountRole.WRITABLE },
+      ],
+      data,
     });
-    // Just verify it didn't throw — the timestamp is set internally
-    expect(result).toBeDefined();
+
+    result.assertSuccess();
+    expect(svm.getBalance(ALICE)).toBe(2_000_000_000n - 100n);
+    expect(svm.getBalance(BOB)).toBe(100n);
   });
 
   // -- simulate (dry run, no state commit) --

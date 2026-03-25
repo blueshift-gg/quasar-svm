@@ -33,6 +33,10 @@ const addressEncoder = getAddressEncoder();
 const mintEncoder = getMintEncoder();
 const tokenEncoder = getTokenEncoder();
 
+function isTokenProgram(programAddress: Address): boolean {
+  return programAddress === SPL_TOKEN_PROGRAM_ID || programAddress === SPL_TOKEN_2022_PROGRAM_ID;
+}
+
 // ---------------------------------------------------------------------------
 // QuasarSvm
 // ---------------------------------------------------------------------------
@@ -93,24 +97,27 @@ export class QuasarSvm extends QuasarSvmBase {
     return this;
   }
 
-  // TODO: TS-side validation checks data length but not content. If the account
-  // has 165+ bytes of non-SPL data, the Rust SplTokenAccount::unpack will panic
-  // and abort the process (panic="abort"). Ideally the upstream SVM methods
-  // should return Result instead of panicking.
+  // NOTE: The underlying Rust method panics on invalid accounts and panic="abort"
+  // means the process will crash. We validate owner + data length here to catch
+  // the common cases, but a 165-byte account owned by a token program with
+  // corrupt data could still trigger the panic.
   setTokenBalance(addr: Address, amount: bigint): this {
     const acct = this.getAccount(addr);
     if (!acct) throw new Error(`setTokenBalance: account ${addr} not found`);
-    if (acct.data.length < 165) throw new Error(`setTokenBalance: account ${addr} is not a valid token account`);
+    if (!isTokenProgram(acct.programAddress) || acct.data.length < 165) {
+      throw new Error(`setTokenBalance: account ${addr} is not a valid token account`);
+    }
     const pubkeyBuf = Buffer.from(addressEncoder.encode(addr));
     this.check(ffi.quasar_svm_set_token_balance(this.ptr, pubkeyBuf, amount));
     return this;
   }
 
-  // TODO: Same panic risk as setTokenBalance — see comment above.
   setMintSupply(addr: Address, supply: bigint): this {
     const acct = this.getAccount(addr);
     if (!acct) throw new Error(`setMintSupply: account ${addr} not found`);
-    if (acct.data.length < 82) throw new Error(`setMintSupply: account ${addr} is not a valid mint account`);
+    if (!isTokenProgram(acct.programAddress) || acct.data.length < 82) {
+      throw new Error(`setMintSupply: account ${addr} is not a valid mint account`);
+    }
     const pubkeyBuf = Buffer.from(addressEncoder.encode(addr));
     this.check(ffi.quasar_svm_set_mint_supply(this.ptr, pubkeyBuf, supply));
     return this;
