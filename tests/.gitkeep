@@ -1,0 +1,4 @@
+# Test programs will be placed in these directories:
+# - tests/rust/programs/
+# - tests/typescript/programs/
+# - tests/python/programs/

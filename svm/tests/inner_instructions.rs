@@ -1,22 +1,26 @@
 /// Test execution trace with CPI capture
 use quasar_svm::token::{create_keyed_associated_token_account, create_keyed_mint_account, Mint};
-use quasar_svm::{Account, Pubkey, QuasarSvm, SPL_TOKEN_PROGRAM_ID};
+use quasar_svm::{QuasarSvm, SPL_TOKEN_PROGRAM_ID};
+use solana_address::Address;
 
 #[test]
 fn test_execution_trace_with_cpis() {
     let mut svm = QuasarSvm::new();
 
     // Setup accounts
-    let authority = Pubkey::new_unique();
-    let mint_addr = Pubkey::new_unique();
+    let authority = Address::new_unique();
+    let mint_addr = Address::new_unique();
 
-    let authority_account = Account {
-        address: authority,
-        owner: quasar_svm::system_program::ID,
-        lamports: 1_000_000_000,
-        data: vec![],
-        executable: false,
-    };
+    let authority_account = (
+        authority,
+        solana_account::Account {
+            owner: quasar_svm::system_program::ID,
+            lamports: 1_000_000_000,
+            data: vec![],
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
 
     let mint = create_keyed_mint_account(
         &mint_addr,
@@ -33,8 +37,8 @@ fn test_execution_trace_with_cpis() {
     // Create transfer instruction
     let transfer_ix = spl_token::instruction::transfer(
         &SPL_TOKEN_PROGRAM_ID,
-        &alice.address,
-        &bob.address,
+        &alice.0,
+        &bob.0,
         &authority,
         &[],
         100,

@@ -1,0 +1,36 @@
+[project]
+name = "quasar-svm-tests"
+version = "0.1.0"
+description = "Tests for quasar-svm Python bindings"
+requires-python = ">=3.10"
+dependencies = [
+    "quasar-svm",  # Will use local version via editable install
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0.0",
+    "pytest-xdist>=3.5.0",  # Parallel test execution
+    "pytest-timeout>=2.2.0",  # Test timeouts
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--tb=short",
+    "-n", "auto",  # Enable parallel testing (auto-detect CPU count)
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+]
+timeout = 30

@@ -1,8 +1,7 @@
 /// Test execution trace with actual CPIs (ATA creation)
 use quasar_svm::token::{create_keyed_mint_account, Mint};
-use quasar_svm::{
-    Account, Pubkey, QuasarSvm, SPL_ASSOCIATED_TOKEN_PROGRAM_ID, SPL_TOKEN_PROGRAM_ID,
-};
+use quasar_svm::{QuasarSvm, SPL_ASSOCIATED_TOKEN_PROGRAM_ID, SPL_TOKEN_PROGRAM_ID};
+use solana_address::Address;
 use solana_instruction::Instruction;
 
 #[test]
@@ -12,25 +11,31 @@ fn test_ata_creation_execution_trace() {
         .with_associated_token_program();
 
     // Setup accounts
-    let payer = Pubkey::new_unique();
-    let wallet = Pubkey::new_unique();
-    let mint_addr = Pubkey::new_unique();
+    let payer = Address::new_unique();
+    let wallet = Address::new_unique();
+    let mint_addr = Address::new_unique();
 
-    let payer_account = Account {
-        address: payer,
-        owner: quasar_svm::system_program::ID,
-        lamports: 10_000_000_000,
-        data: vec![],
-        executable: false,
-    };
+    let payer_account = (
+        payer,
+        solana_account::Account {
+            owner: quasar_svm::system_program::ID,
+            lamports: 10_000_000_000,
+            data: vec![],
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
 
-    let wallet_account = Account {
-        address: wallet,
-        owner: quasar_svm::system_program::ID,
-        lamports: 0,
-        data: vec![],
-        executable: false,
-    };
+    let wallet_account = (
+        wallet,
+        solana_account::Account {
+            owner: quasar_svm::system_program::ID,
+            lamports: 0,
+            data: vec![],
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
 
     let mint = create_keyed_mint_account(
         &mint_addr,
@@ -42,7 +47,7 @@ fn test_ata_creation_execution_trace() {
     );
 
     // Manually derive ATA address using PDA
-    let (ata_address, _bump) = Pubkey::find_program_address(
+    let (ata_address, _bump) = Address::find_program_address(
         &[
             wallet.as_ref(),
             SPL_TOKEN_PROGRAM_ID.as_ref(),

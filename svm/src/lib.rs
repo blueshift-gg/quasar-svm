@@ -7,7 +7,7 @@ pub mod token;
 pub use solana_clock::Clock;
 pub use solana_instruction::{AccountMeta, Instruction};
 pub use solana_instruction_error::InstructionError;
-pub use solana_pubkey::Pubkey;
+pub use solana_address::Address;
 pub use solana_rent::Rent;
 pub use solana_sdk_ids;
 
@@ -28,15 +28,15 @@ pub use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Account {
-    pub address: Pubkey,
+    pub address: Address,
     pub lamports: u64,
     pub data: Vec<u8>,
-    pub owner: Pubkey,
+    pub owner: Address,
     pub executable: bool,
 }
 
 impl Account {
-    pub fn from_pair(address: Pubkey, account: solana_account::Account) -> Self {
+    pub fn from_pair(address: Address, account: solana_account::Account) -> Self {
         Self {
             address,
             lamports: account.lamports,
@@ -46,7 +46,7 @@ impl Account {
         }
     }
 
-    pub fn to_pair(&self) -> (Pubkey, solana_account::Account) {
+    pub fn to_pair(&self) -> (Address, solana_account::Account) {
         (
             self.address,
             solana_account::Account {
@@ -66,7 +66,7 @@ impl Account {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AccountDiff {
-    pub address: Pubkey,
+    pub address: Address,
     pub pre: Account,
     pub post: Account,
 }
@@ -75,14 +75,14 @@ pub struct AccountDiff {
 // Bundled SPL programs
 // ---------------------------------------------------------------------------
 
-pub const SPL_TOKEN_PROGRAM_ID: Pubkey =
-    solana_pubkey::pubkey!("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
+pub const SPL_TOKEN_PROGRAM_ID: Address =
+    solana_address::address!("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 
-pub const SPL_TOKEN_2022_PROGRAM_ID: Pubkey =
-    solana_pubkey::pubkey!("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
+pub const SPL_TOKEN_2022_PROGRAM_ID: Address =
+    solana_address::address!("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
 
-pub const SPL_ASSOCIATED_TOKEN_PROGRAM_ID: Pubkey =
-    solana_pubkey::pubkey!("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
+pub const SPL_ASSOCIATED_TOKEN_PROGRAM_ID: Address =
+    solana_address::address!("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
 
 // ---------------------------------------------------------------------------
 // Builder-style helpers on QuasarSvm
@@ -90,13 +90,13 @@ pub const SPL_ASSOCIATED_TOKEN_PROGRAM_ID: Pubkey =
 
 impl QuasarSvm {
     /// Load a BPF program from an ELF byte slice (loader v3 / upgradeable).
-    pub fn with_program(self, program_id: &Pubkey, elf: &[u8]) -> Self {
+    pub fn with_program(self, program_id: &Address, elf: &[u8]) -> Self {
         self.add_program(program_id, &loader_keys::LOADER_V3, elf);
         self
     }
 
     /// Load a BPF program with a specific loader version.
-    pub fn with_program_loader(self, program_id: &Pubkey, loader: &Pubkey, elf: &[u8]) -> Self {
+    pub fn with_program_loader(self, program_id: &Address, loader: &Address, elf: &[u8]) -> Self {
         self.add_program(program_id, loader, elf);
         self
     }
@@ -124,8 +124,8 @@ impl QuasarSvm {
     }
 
     /// Pre-populate an account in the SVM's account database.
-    pub fn with_account(mut self, account: Account) -> Self {
-        self.set_account(account);
+    pub fn with_account(mut self, address: Address, account: solana_account::Account) -> Self {
+        self.set_account(address, account);
         self
     }
 
@@ -142,14 +142,14 @@ impl QuasarSvm {
     }
 
     /// Give lamports to an account (builder-style).
-    pub fn with_airdrop(mut self, pubkey: &Pubkey, lamports: u64) -> Self {
-        self.airdrop(pubkey, lamports);
+    pub fn with_airdrop(mut self, address: &Address, lamports: u64) -> Self {
+        self.airdrop(address, lamports);
         self
     }
 
     /// Create a rent-exempt account (builder-style).
-    pub fn with_create_account(mut self, pubkey: &Pubkey, space: usize, owner: &Pubkey) -> Self {
-        self.create_account(pubkey, space, owner);
+    pub fn with_create_account(mut self, address: &Address, space: usize, owner: &Address) -> Self {
+        self.create_account(address, space, owner);
         self
     }
 }
@@ -200,7 +200,7 @@ impl ExecutionResult {
     }
 
     /// Look up a resulting account by address.
-    pub fn account(&self, address: &Pubkey) -> Option<&Account> {
+    pub fn account(&self, address: &Address) -> Option<&Account> {
         self.accounts.iter().find(|a| a.address == *address)
     }
 

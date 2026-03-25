@@ -6,7 +6,7 @@ use solana_epoch_rewards::EpochRewards;
 use solana_epoch_schedule::EpochSchedule;
 use solana_hash::Hash;
 use solana_program_runtime::sysvar_cache::SysvarCache;
-use solana_pubkey::Pubkey;
+use solana_address::Address;
 use solana_rent::Rent;
 use solana_slot_hashes::{SlotHashes, MAX_ENTRIES as SLOT_HASHES_MAX_ENTRIES};
 use solana_stake_interface::stake_history::{StakeHistory, StakeHistoryEntry};
@@ -58,7 +58,7 @@ impl Default for Sysvars {
 }
 
 impl Sysvars {
-    fn sysvar_account<T: SysvarSerialize>(&self, sysvar: &T) -> (Pubkey, Account) {
+    fn sysvar_account<T: SysvarSerialize>(&self, sysvar: &T) -> (Address, Account) {
         let data = bincode::serialize::<T>(sysvar).unwrap();
         let space = data.len();
         let lamports = self.rent.minimum_balance(space);
@@ -72,22 +72,22 @@ impl Sysvars {
         (T::id(), account)
     }
 
-    pub fn maybe_create_sysvar_account(&self, pubkey: &Pubkey) -> Option<Account> {
-        if *pubkey == Clock::id() {
+    pub fn maybe_create_sysvar_account(&self, address: &Address) -> Option<Account> {
+        if *address == Clock::id() {
             Some(self.sysvar_account(&self.clock).1)
-        } else if *pubkey == EpochRewards::id() {
+        } else if *address == EpochRewards::id() {
             Some(self.sysvar_account(&self.epoch_rewards).1)
-        } else if *pubkey == EpochSchedule::id() {
+        } else if *address == EpochSchedule::id() {
             Some(self.sysvar_account(&self.epoch_schedule).1)
-        } else if *pubkey == LastRestartSlot::id() {
+        } else if *address == LastRestartSlot::id() {
             Some(self.sysvar_account(&self.last_restart_slot).1)
-        } else if *pubkey == Rent::id() {
+        } else if *address == Rent::id() {
             Some(self.sysvar_account(&self.rent).1)
-        } else if *pubkey == SlotHashes::id() {
+        } else if *address == SlotHashes::id() {
             Some(self.sysvar_account(&self.slot_hashes).1)
-        } else if *pubkey == StakeHistory::id() {
+        } else if *address == StakeHistory::id() {
             Some(self.sysvar_account(&self.stake_history).1)
-        } else if *pubkey == RecentBlockhashes::id() {
+        } else if *address == RecentBlockhashes::id() {
             Some(self.sysvar_account(&self.recent_blockhashes).1)
         } else {
             None
@@ -121,40 +121,40 @@ impl Sysvars {
         }
     }
 
-    pub fn setup_sysvar_cache(&self, accounts: &[(Pubkey, Account)]) -> SysvarCache {
+    pub fn setup_sysvar_cache(&self, accounts: &[(Address, Account)]) -> SysvarCache {
         let mut sysvar_cache = SysvarCache::default();
 
         // Fill from provided accounts first.
-        sysvar_cache.fill_missing_entries(|pubkey, set_sysvar| {
-            if let Some((_, account)) = accounts.iter().find(|(key, _)| key == pubkey) {
+        sysvar_cache.fill_missing_entries(|address, set_sysvar| {
+            if let Some((_, account)) = accounts.iter().find(|(key, _)| key == address) {
                 set_sysvar(account.data())
             }
         });
 
         // Then fill the rest from our defaults.
-        sysvar_cache.fill_missing_entries(|pubkey, set_sysvar| {
-            if *pubkey == Clock::id() {
+        sysvar_cache.fill_missing_entries(|address, set_sysvar| {
+            if *address == Clock::id() {
                 set_sysvar(&bincode::serialize(&self.clock).unwrap());
             }
-            if *pubkey == EpochRewards::id() {
+            if *address == EpochRewards::id() {
                 set_sysvar(&bincode::serialize(&self.epoch_rewards).unwrap());
             }
-            if *pubkey == EpochSchedule::id() {
+            if *address == EpochSchedule::id() {
                 set_sysvar(&bincode::serialize(&self.epoch_schedule).unwrap());
             }
-            if *pubkey == LastRestartSlot::id() {
+            if *address == LastRestartSlot::id() {
                 set_sysvar(&bincode::serialize(&self.last_restart_slot).unwrap());
             }
-            if *pubkey == Rent::id() {
+            if *address == Rent::id() {
                 set_sysvar(&bincode::serialize(&self.rent).unwrap());
             }
-            if *pubkey == SlotHashes::id() {
+            if *address == SlotHashes::id() {
                 set_sysvar(&bincode::serialize(&self.slot_hashes).unwrap());
             }
-            if *pubkey == StakeHistory::id() {
+            if *address == StakeHistory::id() {
                 set_sysvar(&bincode::serialize(&self.stake_history).unwrap());
             }
-            if *pubkey == RecentBlockhashes::id() {
+            if *address == RecentBlockhashes::id() {
                 set_sysvar(&bincode::serialize(&self.recent_blockhashes).unwrap());
             }
         });

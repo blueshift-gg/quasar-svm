@@ -15,6 +15,10 @@ quasar_svm.dll
 .npmrc
 package-lock.json
 
+tests/escrow
+tests/rust/target
+# tests/rust/Cargo.lock
+
 # Python
 bindings/python/build
 bindings/python/dist

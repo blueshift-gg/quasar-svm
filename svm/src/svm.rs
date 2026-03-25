@@ -19,7 +19,7 @@ use solana_message::{LegacyMessage, Message, SanitizedMessage};
 use solana_program_runtime::invoke_context::{EnvironmentConfig, InvokeContext};
 use solana_program_runtime::loaded_programs::ProgramRuntimeEnvironments;
 use solana_program_runtime::sysvar_cache::SysvarCache;
-use solana_pubkey::Pubkey;
+use solana_address::Address;
 use solana_svm_callback::InvokeContextCallback;
 use solana_svm_log_collector::LogCollector;
 use solana_svm_timings::ExecuteTimings;
@@ -39,15 +39,15 @@ impl InvokeContextCallback for NoOpCallback {
     fn get_epoch_stake(&self) -> u64 {
         0
     }
-    fn get_epoch_stake_for_vote_account(&self, _: &Pubkey) -> u64 {
+    fn get_epoch_stake_for_vote_account(&self, _: &Address) -> u64 {
         0
     }
-    fn is_precompile(&self, _: &Pubkey) -> bool {
+    fn is_precompile(&self, _: &Address) -> bool {
         false
     }
     fn process_precompile(
         &self,
-        _: &Pubkey,
+        _: &Address,
         _: &[u8],
         _: Vec<&[u8]>,
     ) -> Result<(), solana_precompile_error::PrecompileError> {
@@ -136,7 +136,7 @@ pub struct QuasarSvm {
     pub logger: Option<Rc<RefCell<LogCollector>>>,
     pub program_cache: ProgramCache,
     pub sysvars: Sysvars,
-    accounts: HashMap<Pubkey, SolanaAccount>,
+    accounts: HashMap<Address, SolanaAccount>,
 }
 
 impl Default for QuasarSvm {
@@ -195,28 +195,27 @@ impl QuasarSvm {
         svm
     }
 
-    pub fn add_program(&self, program_id: &Pubkey, loader_key: &Pubkey, elf: &[u8]) {
+    pub fn add_program(&self, program_id: &Address, loader_key: &Address, elf: &[u8]) {
         self.program_cache.add_program(program_id, loader_key, elf);
     }
 
     /// Store an account in the SVM's account database.
     /// Stored accounts are automatically included when processing transactions.
-    pub fn set_account(&mut self, account: Account) {
-        let (pubkey, acct) = account.to_pair();
-        self.accounts.insert(pubkey, acct);
+    pub fn set_account(&mut self, address: Address, account: SolanaAccount) {
+        self.accounts.insert(address, account);
     }
 
     /// Read an account from the SVM's account database.
-    pub fn get_account(&self, pubkey: &Pubkey) -> Option<Account> {
+    pub fn get_account(&self, address: &Address) -> Option<Account> {
         self.accounts
-            .get(pubkey)
-            .map(|a| Account::from_pair(*pubkey, a.clone()))
+            .get(address)
+            .map(|a| Account::from_pair(*address, a.clone()))
     }
 
     /// Give lamports to an account, creating it if it doesn't exist.
     /// The account is owned by the system program.
-    pub fn airdrop(&mut self, pubkey: &Pubkey, lamports: u64) {
-        let existing = self.accounts.get(pubkey);
+    pub fn airdrop(&mut self, address: &Address, lamports: u64) {
+        let existing = self.accounts.get(address);
         let new_lamports = existing.map_or(lamports, |a| a.lamports + lamports);
         let account = SolanaAccount {
             lamports: new_lamports,
@@ -225,11 +224,11 @@ impl QuasarSvm {
             executable: existing.is_some_and(|a| a.executable),
             rent_epoch: 0,
         };
-        self.accounts.insert(*pubkey, account);
+        self.accounts.insert(*address, account);
     }
 
     /// Create a rent-exempt account with the given space and owner.
-    pub fn create_account(&mut self, pubkey: &Pubkey, space: usize, owner: &Pubkey) {
+    pub fn create_account(&mut self, address: &Address, space: usize, owner: &Address) {
         let lamports = self.sysvars.rent.minimum_balance(space);
         let account = SolanaAccount {
             lamports,
@@ -238,12 +237,12 @@ impl QuasarSvm {
             executable: false,
             rent_epoch: 0,
         };
-        self.accounts.insert(*pubkey, account);
+        self.accounts.insert(*address, account);
     }
 
     /// Set the token balance (amount) of an existing token account in the store.
     /// Panics if the account is not found or is not a valid SPL Token account.
-    pub fn set_token_balance(&mut self, address: &Pubkey, amount: u64) {
+    pub fn set_token_balance(&mut self, address: &Address, amount: u64) {
         let acct = self
             .accounts
             .get_mut(address)
@@ -257,7 +256,7 @@ impl QuasarSvm {
 
     /// Set the supply of an existing mint account in the store.
     /// Panics if the account is not found or is not a valid SPL Mint account.
-    pub fn set_mint_supply(&mut self, address: &Pubkey, supply: u64) {
+    pub fn set_mint_supply(&mut self, address: &Address, supply: u64) {
         let acct = self
             .accounts
             .get_mut(address)
@@ -278,7 +277,7 @@ impl QuasarSvm {
     pub fn simulate_instruction(
         &mut self,
         instruction: &Instruction,
-        accounts: &[Account],
+        accounts: &[(Address, SolanaAccount)],
     ) -> ExecutionResult {
         self.execute_inner(std::slice::from_ref(instruction), accounts, false)
     }
@@ -287,7 +286,7 @@ impl QuasarSvm {
     pub fn simulate_instruction_chain(
         &mut self,
         instructions: &[Instruction],
-        accounts: &[Account],
+        accounts: &[(Address, SolanaAccount)],
     ) -> ExecutionResult {
         self.execute_inner(instructions, accounts, false)
     }
@@ -297,7 +296,7 @@ impl QuasarSvm {
     pub fn process_instruction(
         &mut self,
         instruction: &Instruction,
-        accounts: &[Account],
+        accounts: &[(Address, SolanaAccount)],
     ) -> ExecutionResult {
         self.execute_inner(std::slice::from_ref(instruction), accounts, true)
     }
@@ -307,7 +306,7 @@ impl QuasarSvm {
     pub fn process_instruction_chain(
         &mut self,
         instructions: &[Instruction],
-        accounts: &[Account],
+        accounts: &[(Address, SolanaAccount)],
     ) -> ExecutionResult {
         self.execute_inner(instructions, accounts, true)
     }
@@ -315,13 +314,12 @@ impl QuasarSvm {
     fn execute_inner(
         &mut self,
         instructions: &[Instruction],
-        accounts: &[Account],
+        accounts: &[(Address, SolanaAccount)],
         commit: bool,
     ) -> ExecutionResult {
         self.reset_logger();
 
-        let pairs: Vec<(Pubkey, SolanaAccount)> = accounts.iter().map(|a| a.to_pair()).collect();
-        let merged = self.merge_accounts(&pairs);
+        let merged = self.merge_accounts(accounts);
 
         let (sanitized_message, transaction_accounts) =
             self.compile_accounts(instructions, &merged);
@@ -384,9 +382,9 @@ impl QuasarSvm {
 
     /// Merge explicit accounts with the stored account database.
     /// Explicit accounts take priority over stored ones.
-    fn merge_accounts(&self, accounts: &[(Pubkey, SolanaAccount)]) -> Vec<(Pubkey, SolanaAccount)> {
-        let explicit: HashSet<Pubkey> = accounts.iter().map(|(k, _)| *k).collect();
-        let mut merged: Vec<(Pubkey, SolanaAccount)> = self
+    fn merge_accounts(&self, accounts: &[(Address, SolanaAccount)]) -> Vec<(Address, SolanaAccount)> {
+        let explicit: HashSet<Address> = accounts.iter().map(|(k, _)| *k).collect();
+        let mut merged: Vec<(Address, SolanaAccount)> = self
             .accounts
             .iter()
             .filter(|(k, _)| !explicit.contains(k))
@@ -397,9 +395,9 @@ impl QuasarSvm {
     }
 
     /// Write resulting accounts back into the stored account database.
-    fn commit_accounts(&mut self, resulting: &[(Pubkey, SolanaAccount)]) {
-        for (pubkey, account) in resulting {
-            self.accounts.insert(*pubkey, account.clone());
+    fn commit_accounts(&mut self, resulting: &[(Address, SolanaAccount)]) {
+        for (address, account) in resulting {
+            self.accounts.insert(*address, account.clone());
         }
     }
 
@@ -415,7 +413,7 @@ impl QuasarSvm {
     }
 
     /// Build the instructions sysvar account.
-    fn build_instructions_sysvar(instructions: &[Instruction]) -> (Pubkey, SolanaAccount) {
+    fn build_instructions_sysvar(instructions: &[Instruction]) -> (Address, SolanaAccount) {
         let data = construct_instructions_data(
             instructions
                 .iter()
@@ -451,14 +449,14 @@ impl QuasarSvm {
     fn compile_accounts(
         &self,
         instructions: &[Instruction],
-        accounts: &[(Pubkey, SolanaAccount)],
-    ) -> (SanitizedMessage, Vec<(Pubkey, AccountSharedData)>) {
+        accounts: &[(Address, SolanaAccount)],
+    ) -> (SanitizedMessage, Vec<(Address, AccountSharedData)>) {
         let message = Message::new(instructions, None);
         let sanitized_message =
             SanitizedMessage::Legacy(LegacyMessage::new(message, &HashSet::new()));
 
-        let program_ids: HashSet<Pubkey> = instructions.iter().map(|ix| ix.program_id).collect();
-        let account_keys: HashSet<&Pubkey> = accounts.iter().map(|(k, _)| k).collect();
+        let program_ids: HashSet<Address> = instructions.iter().map(|ix| ix.program_id).collect();
+        let account_keys: HashSet<&Address> = accounts.iter().map(|(k, _)| k).collect();
 
         // Build fallback accounts for programs and sysvars not in the provided list.
         let mut fallbacks = HashMap::new();
@@ -487,7 +485,7 @@ impl QuasarSvm {
             None
         };
 
-        let mut transaction_accounts: Vec<(Pubkey, AccountSharedData)> = sanitized_message
+        let mut transaction_accounts: Vec<(Address, AccountSharedData)> = sanitized_message
             .account_keys()
             .iter()
             .map(|key| {
@@ -524,13 +522,13 @@ impl QuasarSvm {
 
     fn deconstruct_resulting_accounts(
         transaction_context: &TransactionContext,
-        original_accounts: &[(Pubkey, SolanaAccount)],
-    ) -> Vec<(Pubkey, SolanaAccount)> {
+        original_accounts: &[(Address, SolanaAccount)],
+    ) -> Vec<(Address, SolanaAccount)> {
         original_accounts
             .iter()
-            .map(|(pubkey, account)| {
+            .map(|(address, account)| {
                 transaction_context
-                    .find_index_of_account(pubkey)
+                    .find_index_of_account(address)
                     .map(|index| {
                         let account_ref = transaction_context.accounts().try_borrow(index).unwrap();
                         let resulting_account = SolanaAccount {
@@ -540,15 +538,15 @@ impl QuasarSvm {
                             executable: account_ref.executable(),
                             rent_epoch: account_ref.rent_epoch(),
                         };
-                        (*pubkey, resulting_account)
+                        (*address, resulting_account)
                     })
-                    .unwrap_or((*pubkey, account.clone()))
+                    .unwrap_or((*address, account.clone()))
             })
             .collect()
     }
 
-    /// Convert a list of (Pubkey, SolanaAccount) pairs to Vec<Account>.
-    fn pairs_to_svm_accounts(pairs: &[(Pubkey, SolanaAccount)]) -> Vec<Account> {
+    /// Convert a list of (Address, SolanaAccount) pairs to Vec<Account>.
+    fn pairs_to_svm_accounts(pairs: &[(Address, SolanaAccount)]) -> Vec<Account> {
         pairs
             .iter()
             .map(|(k, v)| Account::from_pair(*k, v.clone()))
@@ -556,7 +554,7 @@ impl QuasarSvm {
     }
 
     /// Extract token balances from SPL token accounts
-    fn extract_token_balances(accounts: &[(Pubkey, SolanaAccount)]) -> Vec<TokenBalance> {
+    fn extract_token_balances(accounts: &[(Address, SolanaAccount)]) -> Vec<TokenBalance> {
         accounts
             .iter()
             .enumerate()
@@ -573,10 +571,10 @@ impl QuasarSvm {
                         let amount = token_account.amount.to_string();
 
                         // Get decimals from mint (if we have it in the accounts list)
-                        let mint_pubkey = token_account.mint;
+                        let mint_address = token_account.mint;
                         let decimals = accounts
                             .iter()
-                            .find(|(k, _)| *k == mint_pubkey)
+                            .find(|(k, _)| *k == mint_address)
                             .and_then(|(_, acc)| {
                                 if acc.data().len() == SplMint::LEN {
                                     SplMint::unpack(acc.data()).ok().map(|m| m.decimals)
@@ -594,7 +592,7 @@ impl QuasarSvm {
 
                         TokenBalance {
                             account_index: index,
-                            mint: mint_pubkey.to_string(),
+                            mint: mint_address.to_string(),
                             owner: Some(token_account.owner.to_string()),
                             ui_token_amount: UiTokenAmount {
                                 ui_amount,
@@ -612,7 +610,7 @@ impl QuasarSvm {
     /// Note: Logs use 1-based depth [1], but we convert to 0-based to match trace nesting_level.
     fn parse_log_results(logs: &[String]) -> HashMap<(u8, usize), (u64, u64)> {
         let mut results = HashMap::new();
-        let mut stack: Vec<(u8, usize, Pubkey)> = Vec::new(); // (depth_0based, idx, program_id)
+        let mut stack: Vec<(u8, usize, Address)> = Vec::new(); // (depth_0based, idx, program_id)
         let mut instruction_counter = 0;
 
         for log in logs {
@@ -620,7 +618,7 @@ impl QuasarSvm {
             // Logs use 1-based depth, convert to 0-based to match trace
             if let Some(depth_1based) = Self::parse_invoke_log(log) {
                 let depth_0based = depth_1based.saturating_sub(1);
-                stack.push((depth_0based, instruction_counter, Pubkey::default()));
+                stack.push((depth_0based, instruction_counter, Address::default()));
                 instruction_counter += 1;
                 continue;
             }
@@ -729,7 +727,7 @@ impl QuasarSvm {
                 let program_id_index = frame.program_account_index_in_tx as usize;
                 let program_id = *account_keys
                     .get(program_id_index)
-                    .unwrap_or(&Pubkey::default());
+                    .unwrap_or(&Address::default());
 
                 // Get instruction data from our pre-collected vec
                 let instruction_data = instruction_data_vec.get(idx).cloned().unwrap_or_default();
@@ -739,9 +737,9 @@ impl QuasarSvm {
                     .instruction_accounts
                     .iter()
                     .filter_map(|acc| {
-                        let pubkey = account_keys.get(acc.index_in_transaction as usize)?;
+                        let address = account_keys.get(acc.index_in_transaction as usize)?;
                         Some(AccountMeta {
-                            pubkey: *pubkey,
+                            pubkey: *address,
                             is_signer: acc.is_signer(),
                             is_writable: acc.is_writable(),
                         })

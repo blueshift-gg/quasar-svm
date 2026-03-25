@@ -1,21 +1,25 @@
 /// Test execution trace for debugging and error analysis
 use quasar_svm::token::{create_keyed_mint_account, Mint};
-use quasar_svm::{Account, Pubkey, QuasarSvm, SPL_TOKEN_PROGRAM_ID};
+use quasar_svm::{QuasarSvm, SPL_TOKEN_PROGRAM_ID};
+use solana_address::Address;
 
 #[test]
 fn test_execution_trace_simple_transfer() {
     let mut svm = QuasarSvm::new().with_token_program();
 
-    let authority = Pubkey::new_unique();
-    let mint_addr = Pubkey::new_unique();
+    let authority = Address::new_unique();
+    let mint_addr = Address::new_unique();
 
-    let authority_account = Account {
-        address: authority,
-        owner: quasar_svm::system_program::ID,
-        lamports: 1_000_000_000,
-        data: vec![],
-        executable: false,
-    };
+    let authority_account = (
+        authority,
+        solana_account::Account {
+            owner: quasar_svm::system_program::ID,
+            lamports: 1_000_000_000,
+            data: vec![],
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
 
     let mint = create_keyed_mint_account(
         &mint_addr,
@@ -32,8 +36,8 @@ fn test_execution_trace_simple_transfer() {
 
     let transfer_ix = spl_token::instruction::transfer(
         &SPL_TOKEN_PROGRAM_ID,
-        &alice.address,
-        &bob.address,
+        &alice.0,
+        &bob.0,
         &authority,
         &[],
         100,
@@ -97,18 +101,21 @@ fn test_execution_trace_simple_transfer() {
 fn test_execution_trace_on_error() {
     let mut svm = QuasarSvm::new().with_token_program();
 
-    let authority = Pubkey::new_unique();
-    let wrong_authority = Pubkey::new_unique();
-    let mint_addr = Pubkey::new_unique();
+    let authority = Address::new_unique();
+    let wrong_authority = Address::new_unique();
+    let mint_addr = Address::new_unique();
 
     // Create wrong authority account
-    let wrong_authority_account = Account {
-        address: wrong_authority,
-        owner: quasar_svm::system_program::ID,
-        lamports: 1_000_000_000,
-        data: vec![],
-        executable: false,
-    };
+    let wrong_authority_account = (
+        wrong_authority,
+        solana_account::Account {
+            owner: quasar_svm::system_program::ID,
+            lamports: 1_000_000_000,
+            data: vec![],
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
 
     let mint = create_keyed_mint_account(
         &mint_addr,
@@ -128,8 +135,8 @@ fn test_execution_trace_on_error() {
     // Try to transfer with WRONG authority (should fail)
     let transfer_ix = spl_token::instruction::transfer(
         &SPL_TOKEN_PROGRAM_ID,
-        &alice.address,
-        &bob.address,
+        &alice.0,
+        &bob.0,
         &wrong_authority, // Wrong signer!
         &[],
         100,

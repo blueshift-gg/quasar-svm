@@ -13,7 +13,7 @@ use solana_program_runtime::loaded_programs::{
     LoadProgramMetrics, ProgramCacheEntry, ProgramCacheForTxBatch,
 };
 use solana_program_runtime::solana_sbpf::program::BuiltinProgram;
-use solana_pubkey::Pubkey;
+use solana_address::Address;
 use solana_rent::Rent;
 
 pub mod loader_keys {
@@ -24,18 +24,18 @@ pub mod loader_keys {
 }
 
 struct CacheEntry {
-    loader_key: Pubkey,
+    loader_key: Address,
     elf: Option<Arc<[u8]>>,
 }
 
 pub struct ProgramCache {
     cache: Rc<RefCell<ProgramCacheForTxBatch>>,
-    entries: Rc<RefCell<HashMap<Pubkey, CacheEntry>>>,
+    entries: Rc<RefCell<HashMap<Address, CacheEntry>>>,
     pub runtime_environment: BuiltinProgram<InvokeContext<'static, 'static>>,
 }
 
 struct Builtin {
-    program_id: Pubkey,
+    program_id: Address,
     name: &'static str,
     entrypoint: BuiltinFunctionWithContext,
 }
@@ -92,7 +92,7 @@ impl ProgramCache {
         self.cache.borrow_mut()
     }
 
-    fn replenish(&self, program_id: Pubkey, entry: Arc<ProgramCacheEntry>, elf: Option<Arc<[u8]>>) {
+    fn replenish(&self, program_id: Address, entry: Arc<ProgramCacheEntry>, elf: Option<Arc<[u8]>>) {
         let loader_key = entry.account_owner();
         self.entries
             .borrow_mut()
@@ -100,7 +100,7 @@ impl ProgramCache {
         self.cache.borrow_mut().replenish(program_id, entry);
     }
 
-    pub fn add_program(&self, program_id: &Pubkey, loader_key: &Pubkey, elf: &[u8]) {
+    pub fn add_program(&self, program_id: &Address, loader_key: &Address, elf: &[u8]) {
         let elf_arc: Arc<[u8]> = Arc::from(elf);
         let environment = {
             let config = self.runtime_environment.get_config().clone();
@@ -129,15 +129,15 @@ impl ProgramCache {
         );
     }
 
-    pub fn load_program(&self, program_id: &Pubkey) -> Option<Arc<ProgramCacheEntry>> {
+    pub fn load_program(&self, program_id: &Address) -> Option<Arc<ProgramCacheEntry>> {
         self.cache.borrow().find(program_id)
     }
 
     /// Create fallback accounts for a program that's in the cache.
     /// For LOADER_V3 programs, returns both the program account and its programdata account.
-    pub fn maybe_create_program_accounts(&self, pubkey: &Pubkey) -> Vec<(Pubkey, Account)> {
+    pub fn maybe_create_program_accounts(&self, address: &Address) -> Vec<(Address, Account)> {
         let entries = self.entries.borrow();
-        let Some(entry) = entries.get(pubkey) else {
+        let Some(entry) = entries.get(address) else {
             return vec![];
         };
         match entry.loader_key {
@@ -145,7 +145,7 @@ impl ProgramCache {
                 let data = b"builtin".to_vec();
                 let lamports = Rent::default().minimum_balance(data.len());
                 vec![(
-                    *pubkey,
+                    *address,
                     Account {
                         lamports,
                         data,
@@ -156,7 +156,7 @@ impl ProgramCache {
                 )]
             }
             loader_keys::LOADER_V2 => vec![(
-                *pubkey,
+                *address,
                 Account {
                     lamports: Rent::default().minimum_balance(0),
                     data: vec![],
@@ -167,7 +167,7 @@ impl ProgramCache {
             )],
             loader_keys::LOADER_V3 => {
                 let (programdata_address, _) =
-                    Pubkey::find_program_address(&[pubkey.as_ref()], &loader_keys::LOADER_V3);
+                    Address::find_program_address(&[address.as_ref()], &loader_keys::LOADER_V3);
 
                 // Program account
                 let program_data = bincode::serialize(&UpgradeableLoaderState::Program {
@@ -201,12 +201,12 @@ impl ProgramCache {
                 };
 
                 vec![
-                    (*pubkey, program_account),
+                    (*address, program_account),
                     (programdata_address, programdata_account),
                 ]
             }
             _ => vec![(
-                *pubkey,
+                *address,
                 Account {
                     executable: true,
                     ..Default::default()

@@ -6,6 +6,8 @@ exclude = [
     "npm",
     "include",
     "programs",
+    "tests",
+    "tests/rust"
 ]
 
 [profile.release]

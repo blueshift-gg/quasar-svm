@@ -1,0 +1,26 @@
+{
+  "name": "quasar-svm-tests",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:kit": "vitest run kit",
+    "test:web3": "vitest run web3.js"
+  },
+  "dependencies": {
+    "@blueshift-gg/quasar-svm": "file:../..",
+    "@solana/accounts": "^6.2.0",
+    "@solana/addresses": "^6.2.0",
+    "@solana/instructions": "^6.2.0",
+    "@solana/keys": "^6.2.0",
+    "@solana-program/token": "^0.12.0",
+    "@solana/web3.js": "github:blueshift-gg/solana-web3.js#v2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.0",
+    "typescript": "^5.9.0",
+    "vitest": "^4.1.0"
+  }
+}
