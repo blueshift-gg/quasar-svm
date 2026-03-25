@@ -9,6 +9,7 @@ import {
   createKeyedMintAccount,
   createKeyedTokenAccount,
   SPL_TOKEN_PROGRAM_ID,
+  SPL_TOKEN_2022_PROGRAM_ID,
   SYSTEM_PROGRAM_ID,
 } from "../bindings/node/src/kit/index.js";
 
@@ -103,6 +104,31 @@ describe("state management", () => {
     expect(() => svm.setTokenBalance(TOKEN_ACCT, 100n)).toThrow("not a valid token account");
   });
 
+  it("setTokenBalance throws on correct-length garbage data", () => {
+    // 165 bytes of zeros — right size but not a valid SPL Token account
+    svm.setAccount({
+      address: TOKEN_ACCT,
+      programAddress: address(SPL_TOKEN_PROGRAM_ID),
+      lamports: lamports(1_000_000n),
+      data: new Uint8Array(165),
+      executable: false,
+      space: 165n,
+    });
+    expect(() => svm.setTokenBalance(TOKEN_ACCT, 100n)).toThrow("not a valid token account");
+  });
+
+  it("setTokenBalance throws on token-2022 account with extensions", () => {
+    svm.setAccount({
+      address: TOKEN_ACCT,
+      programAddress: address(SPL_TOKEN_2022_PROGRAM_ID),
+      lamports: lamports(1_000_000n),
+      data: new Uint8Array(200),
+      executable: false,
+      space: 200n,
+    });
+    expect(() => svm.setTokenBalance(TOKEN_ACCT, 100n)).toThrow("not a valid token account");
+  });
+
   // -- setMintSupply --
 
   it("setMintSupply mutates mint supply", () => {
@@ -124,6 +150,30 @@ describe("state management", () => {
 
   it("setMintSupply throws on non-mint account", () => {
     svm.createAccount(MINT, 32, address(SYSTEM_PROGRAM_ID));
+    expect(() => svm.setMintSupply(MINT, 100n)).toThrow("not a valid mint account");
+  });
+
+  it("setMintSupply throws on correct-length garbage data", () => {
+    svm.setAccount({
+      address: MINT,
+      programAddress: address(SPL_TOKEN_PROGRAM_ID),
+      lamports: lamports(1_000_000n),
+      data: new Uint8Array(82),
+      executable: false,
+      space: 82n,
+    });
+    expect(() => svm.setMintSupply(MINT, 100n)).toThrow("not a valid mint account");
+  });
+
+  it("setMintSupply throws on token-2022 mint with extensions", () => {
+    svm.setAccount({
+      address: MINT,
+      programAddress: address(SPL_TOKEN_2022_PROGRAM_ID),
+      lamports: lamports(1_000_000n),
+      data: new Uint8Array(120),
+      executable: false,
+      space: 120n,
+    });
     expect(() => svm.setMintSupply(MINT, 100n)).toThrow("not a valid mint account");
   });
 

@@ -4,7 +4,17 @@ import type { Account } from "@solana/accounts";
 import { lamports } from "@solana/rpc-types";
 import type { Instruction } from "@solana/instructions";
 import type { MintArgs, TokenArgs } from "@solana-program/token";
-import { AccountState, getMintEncoder, getTokenEncoder, getMintSize, getTokenSize } from "@solana-program/token";
+import {
+  AccountState,
+  TokenAccount,
+  getMintEncoder,
+  getMintDecoder,
+  getTokenEncoder,
+  getTokenDecoder,
+  getMintSize,
+  getTokenSize,
+  identifyTokenAccount,
+} from "@solana-program/token";
 import * as ffi from "../ffi.js";
 import { serializeInstructions, serializeAccounts, deserializeSingleAccount } from "./wire.js";
 import { deserializeResult } from "../internal/deserialize.js";
@@ -31,10 +41,12 @@ export { SPL_TOKEN_PROGRAM_ID, SPL_TOKEN_2022_PROGRAM_ID, SPL_ASSOCIATED_TOKEN_P
 
 const addressEncoder = getAddressEncoder();
 const mintEncoder = getMintEncoder();
+const mintDecoder = getMintDecoder();
 const tokenEncoder = getTokenEncoder();
+const tokenDecoder = getTokenDecoder();
 
-function isTokenProgram(programAddress: Address): boolean {
-  return programAddress === SPL_TOKEN_PROGRAM_ID || programAddress === SPL_TOKEN_2022_PROGRAM_ID;
+function isTokenProgram(owner: Address): boolean {
+  return owner === SPL_TOKEN_PROGRAM_ID || owner === SPL_TOKEN_2022_PROGRAM_ID;
 }
 
 // ---------------------------------------------------------------------------
@@ -97,14 +109,20 @@ export class QuasarSvm extends QuasarSvmBase {
     return this;
   }
 
-  // NOTE: The underlying Rust method panics on invalid accounts and panic="abort"
-  // means the process will crash. We validate owner + data length here to catch
-  // the common cases, but a 165-byte account owned by a token program with
-  // corrupt data could still trigger the panic.
   setTokenBalance(addr: Address, amount: bigint): this {
     const acct = this.getAccount(addr);
     if (!acct) throw new Error(`setTokenBalance: account ${addr} not found`);
-    if (!isTokenProgram(acct.programAddress) || acct.data.length < 165) {
+    if (!isTokenProgram(acct.programAddress)) {
+      throw new Error(`setTokenBalance: account ${addr} is not a valid token account`);
+    }
+    try {
+      // Match the current Rust mutator, which uses spl_token::state::Account
+      // Pack::unpack() and only accepts the base 165-byte layout. Token-2022
+      // accounts with extensions must be rejected here until Rust is extension-aware.
+      if (identifyTokenAccount(acct.data) !== TokenAccount.Token) throw null;
+      const token = tokenDecoder.decode(acct.data);
+      if (token.state === AccountState.Uninitialized) throw null;
+    } catch {
       throw new Error(`setTokenBalance: account ${addr} is not a valid token account`);
     }
     const pubkeyBuf = Buffer.from(addressEncoder.encode(addr));
@@ -115,7 +133,17 @@ export class QuasarSvm extends QuasarSvmBase {
   setMintSupply(addr: Address, supply: bigint): this {
     const acct = this.getAccount(addr);
     if (!acct) throw new Error(`setMintSupply: account ${addr} not found`);
-    if (!isTokenProgram(acct.programAddress) || acct.data.length < 82) {
+    if (!isTokenProgram(acct.programAddress)) {
+      throw new Error(`setMintSupply: account ${addr} is not a valid mint account`);
+    }
+    try {
+      // Match the current Rust mutator, which uses spl_token::state::Mint
+      // Pack::unpack() and only accepts the base 82-byte layout. Token-2022
+      // mints with extensions must be rejected here until Rust is extension-aware.
+      if (identifyTokenAccount(acct.data) !== TokenAccount.Mint) throw null;
+      const mint = mintDecoder.decode(acct.data);
+      if (!mint.isInitialized) throw null;
+    } catch {
       throw new Error(`setMintSupply: account ${addr} is not a valid mint account`);
     }
     const pubkeyBuf = Buffer.from(addressEncoder.encode(addr));
