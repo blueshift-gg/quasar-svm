@@ -127,9 +127,8 @@ int32_t quasar_svm_simulate_transaction(QuasarSvm *svm,
                                         uint64_t *result_len_out);
 
 /**
- * Free a buffer previously returned by an FFI function (execution results,
- * serialized accounts from `get_account`, etc.).
- * Both the pointer and the length must be provided.
+ * Free a serialized result buffer previously returned by an execution function.
+ * Both the pointer and the length from the execution call must be provided.
  */
 void quasar_result_free(uint8_t *result, uint64_t result_len);
 
