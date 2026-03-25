@@ -21,9 +21,16 @@ pub extern "C" fn quasar_last_error() -> *const c_char {
 // ---------------------------------------------------------------------------
 
 #[unsafe(no_mangle)]
-pub extern "C" fn quasar_svm_new() -> *mut QuasarSvm {
+pub extern "C" fn quasar_svm_new(token: bool, token_2022: bool, associated_token: bool) -> *mut QuasarSvm {
     clear_last_error();
-    match std::panic::catch_unwind(|| Box::into_raw(Box::new(QuasarSvm::new()))) {
+    let config = quasar_svm::QuasarSvmConfig {
+        token,
+        token_2022,
+        associated_token,
+    };
+    match std::panic::catch_unwind(AssertUnwindSafe(|| {
+        Box::into_raw(Box::new(QuasarSvm::new_with_config(config)))
+    })) {
         Ok(ptr) => ptr,
         Err(_) => {
             set_last_error("Panic during SVM creation");

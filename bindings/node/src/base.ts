@@ -24,8 +24,12 @@ export abstract class QuasarSvmBase {
   protected ptr: unknown;
   private freed = false;
 
-  constructor() {
-    this.ptr = ffi.quasar_svm_new();
+  constructor(config: QuasarSvmConfig = QUASAR_SVM_CONFIG_FULL) {
+    this.ptr = ffi.quasar_svm_new(
+      config.token ?? true,
+      config.token2022 ?? true,
+      config.associatedToken ?? true,
+    );
     if (!this.ptr) {
       throw new Error(
         `Failed to create QuasarSvm: ${ffi.quasar_last_error() ?? "unknown"}`

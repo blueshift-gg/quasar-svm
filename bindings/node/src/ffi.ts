@@ -56,7 +56,7 @@ function getLibraryPath(): string {
 const lib = koffi.load(getLibraryPath());
 
 export const quasar_last_error = lib.func("const char *quasar_last_error()");
-export const quasar_svm_new = lib.func("void *quasar_svm_new()");
+export const quasar_svm_new = lib.func("void *quasar_svm_new(bool token, bool token_2022, bool associated_token)");
 export const quasar_svm_free = lib.func("void quasar_svm_free(void *svm)");
 
 export const quasar_svm_add_program = lib.func(

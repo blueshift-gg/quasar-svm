@@ -27,7 +27,6 @@ import {
   SYSTEM_PROGRAM_ID,
   LOADER_V2,
   LOADER_V3,
-  loadElf,
 } from "../programs.js";
 import { rentMinimumBalance } from "../token.js";
 
@@ -55,10 +54,7 @@ function isTokenProgram(owner: Address): boolean {
 
 export class QuasarSvm extends QuasarSvmBase {
   constructor(config: QuasarSvmConfig = QUASAR_SVM_CONFIG_FULL) {
-    super();
-    if (config.token) this.addProgram(address(SPL_TOKEN_PROGRAM_ID), loadElf("spl_token.so"), LOADER_V2);
-    if (config.token2022) this.addProgram(address(SPL_TOKEN_2022_PROGRAM_ID), loadElf("spl_token_2022.so"), LOADER_V3);
-    if (config.associatedToken) this.addProgram(address(SPL_ASSOCIATED_TOKEN_PROGRAM_ID), loadElf("spl_associated_token.so"), LOADER_V2);
+    super(config);
   }
 
   addProgram(programId: Address, elf: Uint8Array, loaderVersion = LOADER_V3): this {

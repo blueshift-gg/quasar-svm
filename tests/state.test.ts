@@ -12,6 +12,7 @@ import {
   SPL_TOKEN_PROGRAM_ID,
   SPL_TOKEN_2022_PROGRAM_ID,
   SYSTEM_PROGRAM_ID,
+  QUASAR_SVM_CONFIG_FULL,
 } from "../bindings/node/src/kit/index.js";
 
 const ALICE = address("4uQeVj5tqViQh7yWWGStvkEG1Zmhx6uasJtWCJziofM");
@@ -256,6 +257,61 @@ describe("state management", () => {
       const bobBalance = getTokenDecoder().decode(svm.getAccount(BOB_TOKEN)!.data).amount;
       expect(aliceBalance).toBe(4_000n);
       expect(bobBalance).toBe(1_000n);
+    });
+  });
+
+  describe("constructor config", () => {
+    const MINT_2022 = address("3VTnrrzFRgZEAhFRW6gRQTFJjbGMviypojYEtuRsF4LJ");
+    const ALICE_TOKEN = address("DjPi1LtwrXJMAYjR3G1mMQmjkRRjsFBacjJJm8JHHzNu");
+    const BOB_TOKEN = address("HJiQv2jg8JZoNrREAfbS7nXHhR4hEMnqsYbBNpKXSGaC");
+    const ALICE_TOKEN_22 = address("9RhkYqstfLDd4RsAPhm3rsBa5LEjPnMfEjGdqkR5pump");
+    const BOB_TOKEN_22 = address("2vukHhXaWQAFKRAZBwbJFjLfpVi5iPS1nbCJCsVN1BKi");
+
+    function tokenTransferSetup(svm: QuasarSvm) {
+      const mint = createKeyedMintAccount(MINT, { mintAuthority: ALICE, supply: 10_000n });
+      const aliceToken = createKeyedTokenAccount(ALICE_TOKEN, { mint: MINT, owner: ALICE, amount: 5_000n });
+      const bobToken = createKeyedTokenAccount(BOB_TOKEN, { mint: MINT, owner: BOB, amount: 0n });
+      [mint, aliceToken, bobToken].forEach(a => svm.setAccount(a));
+      return getTransferInstruction({
+        source: ALICE_TOKEN, destination: BOB_TOKEN, authority: aliceSigner, amount: 1_000n,
+      });
+    }
+
+    function token2022TransferSetup(svm: QuasarSvm) {
+      const programId = address(SPL_TOKEN_2022_PROGRAM_ID);
+      const mint = createKeyedMintAccount(MINT_2022, { mintAuthority: ALICE, supply: 10_000n }, programId);
+      const aliceToken = createKeyedTokenAccount(ALICE_TOKEN_22, { mint: MINT_2022, owner: ALICE, amount: 5_000n }, programId);
+      const bobToken = createKeyedTokenAccount(BOB_TOKEN_22, { mint: MINT_2022, owner: BOB, amount: 0n }, programId);
+      [mint, aliceToken, bobToken].forEach(a => svm.setAccount(a));
+      return getTransferInstruction({
+        source: ALICE_TOKEN_22, destination: BOB_TOKEN_22, authority: aliceSigner, amount: 1_000n,
+      }, { programAddress: programId });
+    }
+
+    it("default config loads all SPL programs", () => {
+      const svm = new QuasarSvm();
+      svm.processInstruction(tokenTransferSetup(svm)).assertSuccess();
+      svm.processInstruction(token2022TransferSetup(svm)).assertSuccess();
+    });
+
+    it("token: false disables SPL Token but others still work", () => {
+      const svm = new QuasarSvm({ token: false });
+      expect(svm.processInstruction(tokenTransferSetup(svm)).isSuccess()).toBe(false);
+      svm.processInstruction(token2022TransferSetup(svm)).assertSuccess();
+    });
+
+    it("token2022: false disables Token-2022 but others still work", () => {
+      const svm = new QuasarSvm({ token2022: false });
+      svm.processInstruction(tokenTransferSetup(svm)).assertSuccess();
+      expect(svm.processInstruction(token2022TransferSetup(svm)).isSuccess()).toBe(false);
+    });
+
+    it("all false still allows system program", () => {
+      const svm = new QuasarSvm({ token: false, token2022: false, associatedToken: false });
+      svm.airdrop(ALICE, 2_000_000_000n).airdrop(BOB, 0n);
+      const ix = getTransferSolInstruction({ source: aliceSigner, destination: BOB, amount: 100n });
+      svm.processInstruction(ix).assertSuccess();
+      expect(svm.getBalance(BOB)).toBe(100n);
     });
   });
 });

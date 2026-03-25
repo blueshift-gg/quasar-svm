@@ -21,7 +21,7 @@
 
 const char *quasar_last_error(void);
 
-QuasarSvm *quasar_svm_new(void);
+QuasarSvm *quasar_svm_new(bool token, bool token_2022, bool associated_token);
 
 void quasar_svm_free(QuasarSvm *svm);
 
