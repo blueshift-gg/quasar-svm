@@ -7,7 +7,6 @@ import { getTransferSolInstruction } from "@solana-program/system";
 import { getTransferInstruction, getTokenDecoder, getMintDecoder } from "@solana-program/token";
 import {
   QuasarSvm,
-  createKeyedSystemAccount,
   createKeyedMintAccount,
   createKeyedTokenAccount,
   SPL_TOKEN_PROGRAM_ID,
