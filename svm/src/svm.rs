@@ -251,7 +251,8 @@ impl QuasarSvm {
         let mut token = SplTokenAccount::unpack(&acct.data)
             .map_err(|_| format!("set_token_balance: account {address} is not a valid token account"))?;
         token.amount = amount;
-        SplTokenAccount::pack(token, &mut acct.data).unwrap();
+        SplTokenAccount::pack(token, &mut acct.data)
+            .map_err(|_| format!("set_token_balance: failed to pack token account {address}"))?;
         Ok(())
     }
 
@@ -265,7 +266,8 @@ impl QuasarSvm {
         let mut mint = SplMint::unpack(&acct.data)
             .map_err(|_| format!("set_mint_supply: account {address} is not a valid mint account"))?;
         mint.supply = supply;
-        SplMint::pack(mint, &mut acct.data).unwrap();
+        SplMint::pack(mint, &mut acct.data)
+            .map_err(|_| format!("set_mint_supply: failed to pack mint account {address}"))?;
         Ok(())
     }
 

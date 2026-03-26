@@ -275,7 +275,7 @@ pub extern "C" fn quasar_svm_get_account(
     }
 }
 
-// Simple field operations — no deserialization or allocation needed.
+// Account helpers — no wire deserialization needed.
 
 /// Airdrop lamports to an account, creating it if it doesn't exist.
 #[unsafe(no_mangle)]
@@ -289,10 +289,18 @@ pub extern "C" fn quasar_svm_airdrop(
         set_last_error("Null pointer argument");
         return QUASAR_ERR_NULL_POINTER;
     }
-    let svm = unsafe { &mut *svm };
-    let pk = solana_pubkey::Pubkey::new_from_array(unsafe { *pubkey });
-    svm.airdrop(&pk, lamports);
-    QUASAR_OK
+    match std::panic::catch_unwind(AssertUnwindSafe(|| {
+        let svm = unsafe { &mut *svm };
+        let pk = solana_pubkey::Pubkey::new_from_array(unsafe { *pubkey });
+        svm.airdrop(&pk, lamports);
+        QUASAR_OK
+    })) {
+        Ok(code) => code,
+        Err(_) => {
+            set_last_error("Panic during airdrop");
+            QUASAR_ERR_INTERNAL
+        }
+    }
 }
 
 /// Get the lamport balance of an account. Writes 0 if the account doesn't exist.
@@ -327,11 +335,19 @@ pub extern "C" fn quasar_svm_create_account(
         set_last_error("Null pointer argument");
         return QUASAR_ERR_NULL_POINTER;
     }
-    let svm = unsafe { &mut *svm };
-    let pk = solana_pubkey::Pubkey::new_from_array(unsafe { *pubkey });
-    let own = solana_pubkey::Pubkey::new_from_array(unsafe { *owner });
-    svm.create_account(&pk, space as usize, &own);
-    QUASAR_OK
+    match std::panic::catch_unwind(AssertUnwindSafe(|| {
+        let svm = unsafe { &mut *svm };
+        let pk = solana_pubkey::Pubkey::new_from_array(unsafe { *pubkey });
+        let own = solana_pubkey::Pubkey::new_from_array(unsafe { *owner });
+        svm.create_account(&pk, space as usize, &own);
+        QUASAR_OK
+    })) {
+        Ok(code) => code,
+        Err(_) => {
+            set_last_error("Panic during create_account");
+            QUASAR_ERR_INTERNAL
+        }
+    }
 }
 
 /// Set the token balance of an existing SPL Token account.
