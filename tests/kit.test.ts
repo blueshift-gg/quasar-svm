@@ -22,7 +22,7 @@ const TOKEN_ACCT = address("Fj2vfeCmqR4VVoiL2UTqtK3qjfSaEdBnR6bKXbY3bNwi");
 
 const aliceSigner = createNoopSigner(ALICE);
 
-describe("state management", () => {
+describe("QuasarSvm (kit bindings)", () => {
   let svm: QuasarSvm;
 
   beforeEach(() => {
