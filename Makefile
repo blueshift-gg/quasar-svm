@@ -6,12 +6,16 @@ RUST_TARGETS := aarch64-apple-darwin x86_64-apple-darwin x86_64-unknown-linux-gn
 
 PYTHON_DIR := bindings/python
 
-.PHONY: build build-all clean copy-binary prepublish publish publish-platform version
+.PHONY: build build-all test clean copy-binary prepublish publish publish-platform version
 .PHONY: build-python-wheel publish-python clean-python link-python link-node dev-setup
 
 build:
 	cargo build --release -p quasar-svm-ffi
 	npx tsc
+
+test: build
+	cargo test
+	QUASAR_SVM_LIB=target/release/libquasar_svm.dylib bun test
 
 # Development setup: Create symlinks instead of copying binaries.
 # This makes development faster - build once, all bindings see the update.

@@ -4,7 +4,7 @@ import { lamports } from "@solana/rpc-types";
 import type { Account } from "@solana/accounts";
 import { createNoopSigner } from "@solana/signers";
 import { getTransferSolInstruction } from "@solana-program/system";
-import { getTransferInstruction, getTokenDecoder, getMintDecoder } from "@solana-program/token";
+import { getTransferInstruction, getTokenDecoder, getMintDecoder, getMintSize, getTokenSize } from "@solana-program/token";
 import {
   QuasarSvm,
   createKeyedMintAccount,
@@ -12,17 +12,18 @@ import {
   SPL_TOKEN_PROGRAM_ID,
   SPL_TOKEN_2022_PROGRAM_ID,
   SYSTEM_PROGRAM_ID,
-  QUASAR_SVM_CONFIG_FULL,
 } from "../bindings/node/src/kit/index.js";
 
 const ALICE = address("4uQeVj5tqViQh7yWWGStvkEG1Zmhx6uasJtWCJziofM");
 const BOB = address("8qbHbw2BbbTHBW1sbeqakYXVKRQM8Ne7pLK7m6CVfeR");
 const MINT = address("CiDwVBFgWV9E5MvXWoLgnEgn2hK7rJikbvfWavzAQz3");
 const TOKEN_ACCT = address("Fj2vfeCmqR4VVoiL2UTqtK3qjfSaEdBnR6bKXbY3bNwi");
+const MINT_ACCOUNT_SIZE = getMintSize();
+const TOKEN_ACCOUNT_SIZE = getTokenSize();
 
 const aliceSigner = createNoopSigner(ALICE);
 
-describe("QuasarSvm (kit bindings)", () => {
+describe("kit bindings", () => {
   let svm: QuasarSvm;
 
   beforeEach(() => {
@@ -75,11 +76,11 @@ describe("QuasarSvm (kit bindings)", () => {
   describe("createAccount", () => {
     it("creates rent-exempt account with correct owner", () => {
       const owner = address(SPL_TOKEN_PROGRAM_ID);
-      svm.createAccount(ALICE, 165, owner);
+      svm.createAccount(ALICE, TOKEN_ACCOUNT_SIZE, owner);
       const got = svm.getAccount(ALICE);
       expect(got).not.toBeNull();
       expect(got!.programAddress).toBe(SPL_TOKEN_PROGRAM_ID);
-      expect(got!.data.length).toBe(165);
+      expect(got!.data.length).toBe(TOKEN_ACCOUNT_SIZE);
       expect(got!.lamports > 0n).toBe(true);
     });
   });
@@ -112,21 +113,22 @@ describe("QuasarSvm (kit bindings)", () => {
         address: TOKEN_ACCT,
         programAddress: address(SPL_TOKEN_PROGRAM_ID),
         lamports: lamports(1_000_000n),
-        data: new Uint8Array(165),
+        data: new Uint8Array(TOKEN_ACCOUNT_SIZE),
         executable: false,
-        space: 165n,
+        space: BigInt(TOKEN_ACCOUNT_SIZE),
       });
       expect(() => svm.setTokenBalance(TOKEN_ACCT, 100n)).toThrow("not a valid token account");
     });
 
     it("throws on token-2022 account with extensions", () => {
+      const tokenSizeWithArbitraryExtension = TOKEN_ACCOUNT_SIZE + 40;
       svm.setAccount({
         address: TOKEN_ACCT,
         programAddress: address(SPL_TOKEN_2022_PROGRAM_ID),
         lamports: lamports(1_000_000n),
-        data: new Uint8Array(200),
+        data: new Uint8Array(tokenSizeWithArbitraryExtension),
         executable: false,
-        space: 200n,
+        space: BigInt(tokenSizeWithArbitraryExtension),
       });
       expect(() => svm.setTokenBalance(TOKEN_ACCT, 100n)).toThrow("not a valid token account");
     });
@@ -159,21 +161,22 @@ describe("QuasarSvm (kit bindings)", () => {
         address: MINT,
         programAddress: address(SPL_TOKEN_PROGRAM_ID),
         lamports: lamports(1_000_000n),
-        data: new Uint8Array(82),
+        data: new Uint8Array(MINT_ACCOUNT_SIZE),
         executable: false,
-        space: 82n,
+        space: BigInt(MINT_ACCOUNT_SIZE),
       });
       expect(() => svm.setMintSupply(MINT, 100n)).toThrow("not a valid mint account");
     });
 
     it("throws on token-2022 mint with extensions", () => {
+      const mintSizeWithArbitraryExtension = MINT_ACCOUNT_SIZE + 40;
       svm.setAccount({
         address: MINT,
         programAddress: address(SPL_TOKEN_2022_PROGRAM_ID),
         lamports: lamports(1_000_000n),
-        data: new Uint8Array(120),
+        data: new Uint8Array(mintSizeWithArbitraryExtension),
         executable: false,
-        space: 120n,
+        space: BigInt(mintSizeWithArbitraryExtension),
       });
       expect(() => svm.setMintSupply(MINT, 100n)).toThrow("not a valid mint account");
     });
@@ -221,7 +224,7 @@ describe("QuasarSvm (kit bindings)", () => {
     });
   });
 
-  describe("statefulness (SVM store used by processInstruction)", () => {
+  describe("stateful execution", () => {
     it("SOL transfer using accounts from SVM store", () => {
       svm.airdrop(ALICE, 2_000_000_000n);
       svm.airdrop(BOB, 1_000_000n);
