@@ -12,7 +12,7 @@ export function serializeInstruction(ix: TransactionInstruction): Buffer {
   const buf = Buffer.alloc(32 + 4 + data.length + 4 + metaSize);
   let o = 0;
 
-  buf.set(ix.programId.toBuffer(), o);
+  buf.set(ix.programId.toBytes(), o);
   o += 32;
   buf.writeUInt32LE(data.length, o);
   o += 4;
@@ -22,7 +22,7 @@ export function serializeInstruction(ix: TransactionInstruction): Buffer {
   o += 4;
 
   for (const m of keys) {
-    buf.set(m.pubkey.toBuffer(), o);
+    buf.set(m.pubkey.toBytes(), o);
     o += 32;
     buf[o++] = m.isSigner ? 1 : 0;
     buf[o++] = m.isWritable ? 1 : 0;
@@ -54,9 +54,9 @@ export function serializeAccounts(accounts: KeyedAccountInfo[]): Buffer {
   o += 4;
 
   for (const a of accounts) {
-    buf.set(a.accountId.toBuffer(), o);
+    buf.set(a.accountId.toBytes(), o);
     o += 32;
-    buf.set(a.accountInfo.owner.toBuffer(), o);
+    buf.set(a.accountInfo.owner.toBytes(), o);
     o += 32;
     buf.writeBigUInt64LE(BigInt(a.accountInfo.lamports), o);
     o += 8;

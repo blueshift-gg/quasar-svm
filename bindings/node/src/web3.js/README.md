@@ -21,12 +21,12 @@ import { getTokenDecoder } from "@solana-program/token";
 
 const vm = new QuasarSvm(); // SPL programs loaded by default
 
-const authority = (await Keypair.generate()).publicKey;
-const recipient = (await Keypair.generate()).publicKey;
+const authority = (await Keypair.generate()).address;
+const recipient = (await Keypair.generate()).address;
 
-const mint  = createKeyedMintAccount((await Keypair.generate()).publicKey, { decimals: 6, supply: 10_000n });
-const alice = createKeyedAssociatedTokenAccount(authority, mint.accountId, 5_000n);
-const bob   = createKeyedAssociatedTokenAccount(recipient, mint.accountId, 0n);
+const mint  = createKeyedMintAccount((await Keypair.generate()).address, { decimals: 6, supply: 10_000n });
+const alice = await createKeyedAssociatedTokenAccount(authority, mint.accountId, 5_000n);
+const bob   = await createKeyedAssociatedTokenAccount(recipient, mint.accountId, 0n);
 
 const ix = tokenTransfer(alice.accountId, bob.accountId, authority, 1_000n);
 
@@ -55,9 +55,11 @@ type KeyedAccountInfo = {
   accountId: Address;
   accountInfo: {
     owner: Address;
-    lamports: number | bigint;
+    lamports: bigint;
     data: Buffer;
     executable: boolean;
+    rentEpoch: bigint;
+    space: bigint;
   };
 };
 ```
@@ -247,7 +249,7 @@ import { createKeyedMintAccount, Address } from "@blueshift-gg/quasar-svm/web3.j
 import { Keypair } from "@solana/web3.js";
 
 // Address is required as first parameter
-const address = (await Keypair.generate()).publicKey;
+const address = (await Keypair.generate()).address;
 const account = createKeyedMintAccount(address, { decimals: 6 });
 const account = createKeyedMintAccount(address, { decimals: 6, supply: 10_000n });
 
@@ -305,14 +307,14 @@ Derive the ATA address automatically and create a pre-initialized token account.
 ```ts
 import { createKeyedAssociatedTokenAccount } from "@blueshift-gg/quasar-svm/web3.js";
 
-const account = createKeyedAssociatedTokenAccount(owner, mint, 5_000n);
+const account = await createKeyedAssociatedTokenAccount(owner, mint, 5_000n);
 account.accountId; // derived ATA address
 
 // Token-2022
-const account = createKeyedAssociatedTokenAccount(owner, mint, 5_000n, TOKEN_2022_PROGRAM_ID);
+const account = await createKeyedAssociatedTokenAccount(owner, mint, 5_000n, TOKEN_2022_PROGRAM_ID);
 ```
 
-**Note**: Synchronous — uses `Address.findProgramAddressSync`.
+**Note**: Async — uses `Address.findProgramAddress`.
 
 ## Token Types
 
@@ -406,8 +408,8 @@ Derive associated token account addresses without creating accounts:
 ```ts
 import { Address } from "@solana/web3.js";
 
-const [ata] = Address.findProgramAddressSync(
-  [wallet.toBuffer(), tokenProgramId.toBuffer(), mint.toBuffer()],
+const [ata] = await Address.findProgramAddress(
+  [wallet.toBytes(), tokenProgramId.toBytes(), mint.toBytes()],
   new Address(SPL_ASSOCIATED_TOKEN_PROGRAM_ID),
 );
 ```
@@ -421,7 +423,7 @@ All factories that create token-related accounts accept an optional `tokenProgra
 ```ts
 const mint  = createKeyedMintAccount(mintAddr, { decimals: 6 }, TOKEN_2022_PROGRAM_ID);
 const token = createKeyedTokenAccount(tokenAddr, { mint, owner, amount: 5_000n }, TOKEN_2022_PROGRAM_ID);
-const ata   = createKeyedAssociatedTokenAccount(owner, mint, 5_000n, TOKEN_2022_PROGRAM_ID);
+const ata   = await createKeyedAssociatedTokenAccount(owner, mint, 5_000n, TOKEN_2022_PROGRAM_ID);
 ```
 
 ## Full Example
@@ -437,12 +439,12 @@ import { getTokenDecoder } from "@solana-program/token";
 
 const vm = new QuasarSvm(); // SPL programs loaded by default
 
-const authority = (await Keypair.generate()).publicKey;
-const recipient = (await Keypair.generate()).publicKey;
+const authority = (await Keypair.generate()).address;
+const recipient = (await Keypair.generate()).address;
 
-const mint  = createKeyedMintAccount((await Keypair.generate()).publicKey, { decimals: 6, supply: 10_000n });
-const alice = createKeyedAssociatedTokenAccount(authority, mint.accountId, 5_000n);
-const bob   = createKeyedAssociatedTokenAccount(recipient, mint.accountId, 0n);
+const mint  = createKeyedMintAccount((await Keypair.generate()).address, { decimals: 6, supply: 10_000n });
+const alice = await createKeyedAssociatedTokenAccount(authority, mint.accountId, 5_000n);
+const bob   = await createKeyedAssociatedTokenAccount(recipient, mint.accountId, 0n);
 
 const ix = tokenTransfer(alice.accountId, bob.accountId, authority, 1_000n);
 
@@ -461,7 +463,7 @@ The web3.js layer differs from the kit layer in the following ways:
 |---------|---------------|-----------|
 | Address Type | `Address` (class from `@solana/web3.js`) | `Address` (branded string from `@solana/addresses`) |
 | Account Type | `KeyedAccountInfo` | `Account<T>` from `@solana/accounts` |
-| ATA Derivation | Synchronous (`findProgramAddressSync`) | Async (`getProgramDerivedAddress`) |
+| ATA Derivation | Async (`findProgramAddress`) | Async (`getProgramDerivedAddress`) |
 | Mint/Token Types | Custom interfaces | `MintArgs`/`TokenArgs` from `@solana-program/token` |
 | Account Field Name | `accountId` | `address` |
 
@@ -477,7 +479,7 @@ Both layers expose the same functionality with different type systems to match t
 - `createKeyedSystemAccount(address, lamports?)`
 - `createKeyedMintAccount(address, opts, tokenProgramId?)`
 - `createKeyedTokenAccount(address | opts, opts?, tokenProgramId?)`
-- `createKeyedAssociatedTokenAccount(owner, mint, amount, tokenProgramId?)`
+- `createKeyedAssociatedTokenAccount(owner, mint, amount, tokenProgramId?)` (async)
 
 ### Instruction Builders
 - `tokenTransfer(source, destination, authority, amount, tokenProgramId?)`

@@ -490,7 +490,7 @@ The kit layer differs from the web3.js layer in the following ways:
 |---------|-----------|---------------|
 | Address Type | `Address` (branded string from `@solana/addresses`) | `Address` (class from `@solana/web3.js`) |
 | Account Type | `Account<T>` from `@solana/accounts` | `KeyedAccountInfo` |
-| ATA Derivation | Async (`getProgramDerivedAddress`) | Synchronous (`findProgramAddressSync`) |
+| ATA Derivation | Async (`getProgramDerivedAddress`) | Async (`findProgramAddress`) |
 | Mint/Token Types | `MintArgs`/`TokenArgs` from `@solana-program/token` | Custom interfaces |
 | Account Field Name | `address` | `accountId` |
 

@@ -75,8 +75,8 @@ const authority = new Address("11111111111111111111111111111112"); // Example ad
 const recipient = new Address("11111111111111111111111111111113");
 
 const mint = createKeyedMintAccount(new Address("TokenMint111111111111111111111111111"), { decimals: 6, supply: 10_000n });
-const alice = createKeyedAssociatedTokenAccount(authority, mint.accountId, 5_000n);
-const bob = createKeyedAssociatedTokenAccount(recipient, mint.accountId, 0n);
+const alice = await createKeyedAssociatedTokenAccount(authority, mint.accountId, 5_000n);
+const bob = await createKeyedAssociatedTokenAccount(recipient, mint.accountId, 0n);
 
 const ix = getTransferInstruction({
   source: alice.accountId,
@@ -171,7 +171,7 @@ with QuasarSvm() as svm:
 |-------|--------|-------------|
 | **Rust** | [svm/README.md](svm/README.md) | Core SVM engine: `QuasarSvm`, `ExecutionResult`, `Account`, token helpers |
 | **Python** | [bindings/python/README.md](bindings/python/README.md) | Python API using `solders` types (`Pubkey`, `Instruction`, `AccountMeta`) |
-| **web3.js** | [bindings/node/src/web3.js/README.md](bindings/node/src/web3.js/README.md) | TypeScript API using `@solana/web3.js` types (`PublicKey`, `KeyedAccountInfo`) |
+| **web3.js** | [bindings/node/src/web3.js/README.md](bindings/node/src/web3.js/README.md) | TypeScript API using `@solana/web3.js` types (`Address`, `KeyedAccountInfo`) |
 | **kit** | [bindings/node/src/kit/README.md](bindings/node/src/kit/README.md) | TypeScript API using `@solana/kit` types (`Address`, `Account<T>`) |
 
 ## Exports
@@ -179,11 +179,11 @@ with QuasarSvm() as svm:
 | Import Path | Address Type | Account Type | Description |
 |-------------|-------------|--------------|-------------|
 | `quasar_svm` | `solders.Pubkey` | `KeyedAccount` | Python API using `solders` |
-| `@blueshift-gg/quasar-svm/web3.js` | `PublicKey` | `KeyedAccount` | `@solana/web3.js` API |
+| `@blueshift-gg/quasar-svm/web3.js` | `Address` | `KeyedAccountInfo` | `@solana/web3.js` API |
 | `@blueshift-gg/quasar-svm/kit` | `Address` | `Account` | `@solana/kit` API |
 | `@blueshift-gg/quasar-svm/ffi` | — | — | Low-level native bindings |
 
-All APIs expose the same core functionality with idiomatic types for each language. The web3.js layer additionally provides `toKeyedAccountInfo` / `fromKeyedAccountInfo` for interop with legacy code.
+All APIs expose the same core functionality with idiomatic types for each language.
 
 ## Workspace
 

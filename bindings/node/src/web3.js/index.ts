@@ -67,7 +67,7 @@ export class QuasarSvm extends QuasarSvmBase {
     this.check(
       ffi.quasar_svm_add_program(
         this.ptr,
-        programId.toBuffer(),
+        Buffer.from(programId.toBytes()),
         Buffer.from(elf),
         elf.length,
         loaderVersion
@@ -104,13 +104,16 @@ function keyed(
   data: Buffer | Uint8Array,
   executable = false,
 ): KeyedAccountInfo {
+  const accountData = Buffer.isBuffer(data) ? data : Buffer.from(data);
   return {
     accountId: addr,
     accountInfo: {
       owner,
       lamports,
-      data: Buffer.isBuffer(data) ? data : Buffer.from(data),
+      data: accountData,
       executable,
+      rentEpoch: 0n,
+      space: BigInt(accountData.length),
     },
   };
 }
@@ -160,14 +163,14 @@ export function createKeyedTokenAccount(
 }
 
 /** Create a pre-initialized associated token account. Derives the ATA address automatically. */
-export function createKeyedAssociatedTokenAccount(
+export async function createKeyedAssociatedTokenAccount(
   owner: Address,
   mint: Address,
   amount: bigint,
   tokenProgramId = new Address(SPL_TOKEN_PROGRAM_ID),
-): KeyedAccountInfo {
-  const [ata] = Address.findProgramAddressSync(
-    [owner.toBuffer(), tokenProgramId.toBuffer(), mint.toBuffer()],
+): Promise<KeyedAccountInfo> {
+  const [ata] = await Address.findProgramAddress(
+    [owner.toBytes(), tokenProgramId.toBytes(), mint.toBytes()],
     new Address(SPL_ASSOCIATED_TOKEN_PROGRAM_ID),
   );
   const data = Buffer.from(tokenEncoder.encode({

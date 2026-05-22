@@ -59,7 +59,7 @@
     "@blueshift-gg/quasar-svm-win32-x64-msvc": "^0.1"
   },
   "peerDependencies": {
-    "@solana/web3.js": "git:blueshift-gg/solana-web3.js#v2"
+    "@solana/web3.js": "^3.0.0-rc.0"
   },
   "peerDependenciesMeta": {
     "@solana/web3.js": {
@@ -67,7 +67,7 @@
     }
   },
   "devDependencies": {
-    "@solana/web3.js": "github:blueshift-gg/solana-web3.js#v2",
+    "@solana/web3.js": "3.0.0-rc.0",
     "@types/node": "^22.13.0",
     "typescript": "^5.9.0",
     "vitest": "^4.1.0"
