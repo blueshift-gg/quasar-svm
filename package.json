@@ -67,6 +67,7 @@
     }
   },
   "devDependencies": {
+    "@solana/spl-token": "^0.4.14",
     "@solana/web3.js": "3.0.0-rc.0",
     "@types/node": "^22.13.0",
     "typescript": "^5.9.0",

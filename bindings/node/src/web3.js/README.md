@@ -14,9 +14,9 @@ npm install @blueshift-gg/quasar-svm
 import {
   QuasarSvm,
   createKeyedMintAccount, createKeyedAssociatedTokenAccount,
-  tokenTransfer,
 } from "@blueshift-gg/quasar-svm/web3.js";
 import { Keypair } from "@solana/web3.js";
+import { createTransferInstruction } from "@solana/spl-token";
 import { getTokenDecoder } from "@solana-program/token";
 
 const vm = new QuasarSvm(); // SPL programs loaded by default
@@ -28,7 +28,7 @@ const mint  = createKeyedMintAccount((await Keypair.generate()).address, { decim
 const alice = await createKeyedAssociatedTokenAccount(authority, mint.accountId, 5_000n);
 const bob   = await createKeyedAssociatedTokenAccount(recipient, mint.accountId, 0n);
 
-const ix = tokenTransfer(alice.accountId, bob.accountId, authority, 1_000n);
+const ix = createTransferInstruction(alice.accountId, bob.accountId, authority, 1_000n);
 
 const result = vm.processInstruction(ix, [mint, alice, bob]);
 
@@ -245,8 +245,8 @@ const account = createKeyedSystemAccount(address, 1_000_000_000n);
 Create a pre-initialized SPL Token mint:
 
 ```ts
-import { createKeyedMintAccount, Address } from "@blueshift-gg/quasar-svm/web3.js";
-import { Keypair } from "@solana/web3.js";
+import { createKeyedMintAccount } from "@blueshift-gg/quasar-svm/web3.js";
+import { Address, Keypair } from "@solana/web3.js";
 
 // Address is required as first parameter
 const address = (await Keypair.generate()).address;
@@ -358,31 +358,30 @@ enum AccountState {
 
 ## Token Instruction Builders
 
-All builders accept an optional `tokenProgramId` parameter (defaults to SPL Token). Pass `TOKEN_2022_PROGRAM_ID` for Token-2022.
+Use instruction builders from `@solana/spl-token`:
 
 ### Transfer
 
 ```ts
-import { tokenTransfer } from "@blueshift-gg/quasar-svm/web3.js";
+import { createTransferInstruction } from "@solana/spl-token";
 
-const ix = tokenTransfer(source, destination, authority, 1_000n);
-const ix = tokenTransfer(source, destination, authority, 1_000n, TOKEN_2022_PROGRAM_ID);
+const ix = createTransferInstruction(source, destination, authority, 1_000n);
 ```
 
 ### MintTo
 
 ```ts
-import { tokenMintTo } from "@blueshift-gg/quasar-svm/web3.js";
+import { createMintToInstruction } from "@solana/spl-token";
 
-const ix = tokenMintTo(mint, destination, mintAuthority, 5_000n);
+const ix = createMintToInstruction(mint, destination, mintAuthority, 5_000n);
 ```
 
 ### Burn
 
 ```ts
-import { tokenBurn } from "@blueshift-gg/quasar-svm/web3.js";
+import { createBurnInstruction } from "@solana/spl-token";
 
-const ix = tokenBurn(source, mint, authority, 500n);
+const ix = createBurnInstruction(source, mint, authority, 500n);
 ```
 
 ## Result Token Helpers
@@ -432,9 +431,9 @@ const ata   = await createKeyedAssociatedTokenAccount(owner, mint, 5_000n, TOKEN
 import {
   QuasarSvm,
   createKeyedMintAccount, createKeyedAssociatedTokenAccount,
-  tokenTransfer,
 } from "@blueshift-gg/quasar-svm/web3.js";
 import { Keypair } from "@solana/web3.js";
+import { createTransferInstruction } from "@solana/spl-token";
 import { getTokenDecoder } from "@solana-program/token";
 
 const vm = new QuasarSvm(); // SPL programs loaded by default
@@ -446,7 +445,7 @@ const mint  = createKeyedMintAccount((await Keypair.generate()).address, { decim
 const alice = await createKeyedAssociatedTokenAccount(authority, mint.accountId, 5_000n);
 const bob   = await createKeyedAssociatedTokenAccount(recipient, mint.accountId, 0n);
 
-const ix = tokenTransfer(alice.accountId, bob.accountId, authority, 1_000n);
+const ix = createTransferInstruction(alice.accountId, bob.accountId, authority, 1_000n);
 
 const result = vm.processInstruction(ix, [mint, alice, bob]);
 
@@ -480,11 +479,6 @@ Both layers expose the same functionality with different type systems to match t
 - `createKeyedMintAccount(address, opts, tokenProgramId?)`
 - `createKeyedTokenAccount(address | opts, opts?, tokenProgramId?)`
 - `createKeyedAssociatedTokenAccount(owner, mint, amount, tokenProgramId?)` (async)
-
-### Instruction Builders
-- `tokenTransfer(source, destination, authority, amount, tokenProgramId?)`
-- `tokenMintTo(mint, destination, authority, amount, tokenProgramId?)`
-- `tokenBurn(source, mint, authority, amount, tokenProgramId?)`
 
 ### Types
 - `KeyedAccountInfo`

@@ -65,25 +65,22 @@ assert_eq!(bob_token.amount, 1_000);
 
 ```ts
 import { QuasarSvm, createKeyedMintAccount, createKeyedAssociatedTokenAccount } from "@blueshift-gg/quasar-svm/web3.js";
-import { Address } from "@solana/web3.js";
-import { getTransferInstruction } from "@solana/spl-token";
+import { Keypair } from "@solana/web3.js";
+import { createTransferInstruction } from "@solana/spl-token";
 import { getTokenDecoder } from "@solana-program/token";
 
 const vm = new QuasarSvm(); // Token program loaded by default
 
-const authority = new Address("11111111111111111111111111111112"); // Example address
-const recipient = new Address("11111111111111111111111111111113");
+const randomAddress = async () => (await Keypair.generate()).address;
 
-const mint = createKeyedMintAccount(new Address("TokenMint111111111111111111111111111"), { decimals: 6, supply: 10_000n });
+const authority = await randomAddress();
+const recipient = await randomAddress();
+
+const mint = createKeyedMintAccount(await randomAddress(), { decimals: 6, supply: 10_000n });
 const alice = await createKeyedAssociatedTokenAccount(authority, mint.accountId, 5_000n);
 const bob = await createKeyedAssociatedTokenAccount(recipient, mint.accountId, 0n);
 
-const ix = getTransferInstruction({
-  source: alice.accountId,
-  destination: bob.accountId,
-  owner: authority,
-  amount: 1_000n,
-});
+const ix = createTransferInstruction(alice.accountId, bob.accountId, authority, 1_000n);
 
 const result = vm.processInstruction(ix, [mint, alice, bob]);
 
@@ -95,22 +92,27 @@ console.log(result.account(bob.accountId, getTokenDecoder())?.amount); // 1000n
 
 ```ts
 import { QuasarSvm, createKeyedMintAccount, createKeyedAssociatedTokenAccount } from "@blueshift-gg/quasar-svm/kit";
-import { address } from "@solana/addresses";
+import { getAddressFromPublicKey } from "@solana/addresses";
+import { generateKeyPair } from "@solana/keys";
+import { createSignerFromKeyPair } from "@solana/signers";
 import { getTransferInstruction, getTokenDecoder } from "@solana-program/token";
 
 const vm = new QuasarSvm(); // Token program loaded by default
 
-const authority = address("11111111111111111111111111111112"); // Example address
-const recipient = address("11111111111111111111111111111113");
+const randomAddress = async () => getAddressFromPublicKey((await generateKeyPair()).publicKey);
 
-const mint = createKeyedMintAccount(address("TokenMint111111111111111111111111111"), { decimals: 6, supply: 10_000n });
-const alice = await createKeyedAssociatedTokenAccount(authority, mint.address, 5_000n);
+const authorityKeyPair = await generateKeyPair();
+const authority = await createSignerFromKeyPair(authorityKeyPair);
+const recipient = await randomAddress();
+
+const mint = createKeyedMintAccount(await randomAddress(), { decimals: 6, supply: 10_000n });
+const alice = await createKeyedAssociatedTokenAccount(authority.address, mint.address, 5_000n);
 const bob = await createKeyedAssociatedTokenAccount(recipient, mint.address, 0n);
 
 const ix = getTransferInstruction({
   source: alice.address,
   destination: bob.address,
-  owner: authority,
+  authority,
   amount: 1_000n,
 });
 
@@ -249,6 +251,21 @@ bun run build
 bun run build:native
 bun run test
 ```
+
+### README example tests
+
+The fully-worked TypeScript README snippets are executed as part of the test suite.
+
+How it works:
+
+- The test file declares which README heading to validate.
+- The extracted snippet is typechecked against the local source tree using `tests/tsconfig.json` before execution.
+- `tests/helpers/readmeExamples.ts` finds the first ` ```ts ` block under that heading.
+- The extracted snippet is rewritten in memory so package imports like `@blueshift-gg/quasar-svm/web3.js` point at local source files in `bindings/node/src/...`.
+- The snippet is transpiled to a temporary `.mjs` file and executed.
+- `console.log` is intercepted while the snippet runs.
+- Expected output is declared inline using comments of the form `console.log(value); // expected-output`.
+- The test compares the captured log output to those expected comment strings.
 
 ## License
 

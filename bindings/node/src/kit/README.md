@@ -15,21 +15,21 @@ import {
   QuasarSvm,
   createKeyedMintAccount, createKeyedAssociatedTokenAccount,
 } from "@blueshift-gg/quasar-svm/kit";
-import { generateKeyPair, getAddressFromPublicKey } from "@solana/keys";
+import { getAddressFromPublicKey } from "@solana/addresses";
+import { generateKeyPair } from "@solana/keys";
+import { createSignerFromKeyPair } from "@solana/signers";
 import { getTokenDecoder, getTransferInstruction } from "@solana-program/token";
 
 const vm = new QuasarSvm(); // SPL programs loaded by default
+const randomAddress = async () => getAddressFromPublicKey((await generateKeyPair()).publicKey); 
 
 const authorityKp = await generateKeyPair();
-const authority = await getAddressFromPublicKey(authorityKp.publicKey);
+const authority = await createSignerFromKeyPair(authorityKp);
 
-const mintAddr = await getAddressFromPublicKey((await generateKeyPair()).publicKey);
-const mint  = createKeyedMintAccount(mintAddr, { decimals: 6, supply: 10_000n });
-const alice = await createKeyedAssociatedTokenAccount(authority, mint.address, 5_000n);
-const bob   = await createKeyedAssociatedTokenAccount(
-  await getAddressFromPublicKey((await generateKeyPair()).publicKey),
-  mint.address, 0n,
-);
+const mint  = createKeyedMintAccount(await randomAddress(), { decimals: 6, supply: 10_000n });
+const alice = await createKeyedAssociatedTokenAccount(authority.address, mint.address, 5_000n);
+
+const bob   = await createKeyedAssociatedTokenAccount(await randomAddress(), mint.address, 0n,);
 
 const ix = getTransferInstruction({
   source: alice.address,
@@ -454,19 +454,20 @@ import {
   QuasarSvm,
   createKeyedMintAccount, createKeyedAssociatedTokenAccount,
 } from "@blueshift-gg/quasar-svm/kit";
-import { generateKeyPair, getAddressFromPublicKey } from "@solana/keys";
+import { getAddressFromPublicKey } from "@solana/addresses";
+import { generateKeyPair } from "@solana/keys";
+import { createSignerFromKeyPair } from "@solana/signers";
 import { getTokenDecoder, getTransferInstruction } from "@solana-program/token";
 
 const vm = new QuasarSvm(); // SPL programs loaded by default
+const randomAddress = async () => getAddressFromPublicKey((await generateKeyPair()).publicKey); 
 
 const authorityKp = await generateKeyPair();
-const authority = await getAddressFromPublicKey(authorityKp.publicKey);
-const recipient = await getAddressFromPublicKey((await generateKeyPair()).publicKey);
+const authority = await createSignerFromKeyPair(authorityKp);
 
-const mintAddr = await getAddressFromPublicKey((await generateKeyPair()).publicKey);
-const mint  = createKeyedMintAccount(mintAddr, { decimals: 6, supply: 10_000n });
-const alice = await createKeyedAssociatedTokenAccount(authority, mint.address, 5_000n);
-const bob   = await createKeyedAssociatedTokenAccount(recipient, mint.address, 0n);
+const mint  = createKeyedMintAccount(await randomAddress(), { decimals: 6, supply: 10_000n });
+const alice = await createKeyedAssociatedTokenAccount(authority.address, mint.address, 5_000n);
+const bob   = await createKeyedAssociatedTokenAccount(await randomAddress(), mint.address, 0n);
 
 const ix = getTransferInstruction({
   source: alice.address,
