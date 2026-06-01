@@ -1,7 +1,8 @@
 import { Address } from "@solana/web3.js";
-import type { TransactionInstruction, KeyedAccountInfo } from "@solana/web3.js";
+import type { KeyedAccountInfo } from "@solana/web3.js";
 import { getMintEncoder, getTokenEncoder, getMintSize, getTokenSize, AccountState } from "@solana-program/token";
 import type { Address as SplAddress } from "@solana/addresses";
+import type { SupportedInstruction } from "./wire.js";
 import * as ffi from "../ffi.js";
 import { serializeInstructions, serializeAccounts } from "./wire.js";
 import { deserializeResult } from "../internal/deserialize.js";
@@ -25,6 +26,7 @@ export type { ExecutionStatus, ProgramError, Clock, EpochSchedule, QuasarSvmConf
 export { QUASAR_SVM_CONFIG_FULL } from "../index.js";
 export { SPL_TOKEN_PROGRAM_ID, SPL_TOKEN_2022_PROGRAM_ID, SPL_ASSOCIATED_TOKEN_PROGRAM_ID, LOADER_V2, LOADER_V3, LAMPORTS_PER_SOL } from "../programs.js";
 export { AccountState } from "@solana-program/token";
+export type { SupportedInstruction } from "./wire.js";
 
 const mintEncoder = getMintEncoder();
 const tokenEncoder = getTokenEncoder();
@@ -78,11 +80,11 @@ export class QuasarSvm extends QuasarSvmBase {
 
   // ---------- Execution ----------
 
-  processInstruction(instruction: TransactionInstruction, accounts: KeyedAccountInfo[]): ExecutionResult {
+  processInstruction(instruction: SupportedInstruction, accounts: KeyedAccountInfo[]): ExecutionResult {
     return this.exec(ffi.quasar_svm_process_transaction, serializeInstructions([instruction]), serializeAccounts(accounts));
   }
 
-  processInstructionChain(instructions: TransactionInstruction[], accounts: KeyedAccountInfo[]): ExecutionResult {
+  processInstructionChain(instructions: SupportedInstruction[], accounts: KeyedAccountInfo[]): ExecutionResult {
     return this.exec(ffi.quasar_svm_process_transaction, serializeInstructions(instructions), serializeAccounts(accounts));
   }
 
@@ -167,7 +169,7 @@ export async function createKeyedAssociatedTokenAccount(
   owner: Address,
   mint: Address,
   amount: bigint,
-  tokenProgramId = new Address(SPL_TOKEN_PROGRAM_ID),
+  tokenProgramId: Address = new Address(SPL_TOKEN_PROGRAM_ID),
 ): Promise<KeyedAccountInfo> {
   const [ata] = await Address.findProgramAddress(
     [owner.toBytes(), tokenProgramId.toBytes(), mint.toBytes()],

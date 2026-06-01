@@ -64,23 +64,42 @@ assert_eq!(bob_token.amount, 1_000);
 ### TypeScript (web3.js)
 
 ```ts
-import { QuasarSvm, createKeyedMintAccount, createKeyedAssociatedTokenAccount } from "@blueshift-gg/quasar-svm/web3.js";
+import {
+	createKeyedAssociatedTokenAccount,
+	createKeyedMintAccount,
+	QuasarSvm,
+} from "@blueshift-gg/quasar-svm/web3.js";
 import { Keypair } from "@solana/web3.js";
-import { createTransferInstruction } from "@solana/spl-token";
-import { getTokenDecoder } from "@solana-program/token";
+import { getTokenDecoder, getTransferInstruction } from "@solana-program/token";
 
 const vm = new QuasarSvm(); // Token program loaded by default
 
-const randomAddress = async () => (await Keypair.generate()).address;
+const randomAddress = async () => (await Keypair.generate()).publicKey;
 
-const authority = await randomAddress();
+const authority = await Keypair.generate();
 const recipient = await randomAddress();
 
-const mint = createKeyedMintAccount(await randomAddress(), { decimals: 6, supply: 10_000n });
-const alice = await createKeyedAssociatedTokenAccount(authority, mint.accountId, 5_000n);
-const bob = await createKeyedAssociatedTokenAccount(recipient, mint.accountId, 0n);
+const mint = createKeyedMintAccount(await randomAddress(), {
+	decimals: 6,
+	supply: 10_000n,
+});
+const alice = await createKeyedAssociatedTokenAccount(
+	authority.publicKey,
+	mint.accountId,
+	5_000n,
+);
+const bob = await createKeyedAssociatedTokenAccount(
+	recipient,
+	mint.accountId,
+	0n,
+);
 
-const ix = createTransferInstruction(alice.accountId, bob.accountId, authority, 1_000n);
+const ix = getTransferInstruction({
+	source: alice.accountId.toBase58(),
+	destination: bob.accountId.toBase58(),
+	authority,
+	amount: 1_000n,
+});
 
 const result = vm.processInstruction(ix, [mint, alice, bob]);
 
@@ -91,29 +110,45 @@ console.log(result.account(bob.accountId, getTokenDecoder())?.amount); // 1000n
 ### TypeScript (kit)
 
 ```ts
-import { QuasarSvm, createKeyedMintAccount, createKeyedAssociatedTokenAccount } from "@blueshift-gg/quasar-svm/kit";
+import {
+	createKeyedAssociatedTokenAccount,
+	createKeyedMintAccount,
+	QuasarSvm,
+} from "@blueshift-gg/quasar-svm/kit";
 import { getAddressFromPublicKey } from "@solana/addresses";
 import { generateKeyPair } from "@solana/keys";
 import { createSignerFromKeyPair } from "@solana/signers";
-import { getTransferInstruction, getTokenDecoder } from "@solana-program/token";
+import { getTokenDecoder, getTransferInstruction } from "@solana-program/token";
 
 const vm = new QuasarSvm(); // Token program loaded by default
 
-const randomAddress = async () => getAddressFromPublicKey((await generateKeyPair()).publicKey);
+const randomAddress = async () =>
+	getAddressFromPublicKey((await generateKeyPair()).publicKey);
 
 const authorityKeyPair = await generateKeyPair();
 const authority = await createSignerFromKeyPair(authorityKeyPair);
 const recipient = await randomAddress();
 
-const mint = createKeyedMintAccount(await randomAddress(), { decimals: 6, supply: 10_000n });
-const alice = await createKeyedAssociatedTokenAccount(authority.address, mint.address, 5_000n);
-const bob = await createKeyedAssociatedTokenAccount(recipient, mint.address, 0n);
+const mint = createKeyedMintAccount(await randomAddress(), {
+	decimals: 6,
+	supply: 10_000n,
+});
+const alice = await createKeyedAssociatedTokenAccount(
+	authority.address,
+	mint.address,
+	5_000n,
+);
+const bob = await createKeyedAssociatedTokenAccount(
+	recipient,
+	mint.address,
+	0n,
+);
 
 const ix = getTransferInstruction({
-  source: alice.address,
-  destination: bob.address,
-  authority,
-  amount: 1_000n,
+	source: alice.address,
+	destination: bob.address,
+	authority,
+	amount: 1_000n,
 });
 
 const result = vm.processInstruction(ix, [mint, alice, bob]);

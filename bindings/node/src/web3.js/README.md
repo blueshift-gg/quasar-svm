@@ -1,6 +1,6 @@
 # QuasarSVM - web3.js Layer
 
-QuasarSVM web3.js layer provides Solana virtual machine execution with full interoperability with `@solana/web3.js`. This layer uses `Address` (class) from web3.js and `KeyedAccountInfo` for account representation.
+QuasarSVM web3.js layer provides Solana virtual machine execution with full interoperability with `@solana/web3.js`. This layer uses `Address` (class) from web3.js and `KeyedAccountInfo` for account representation, and it can execute both native web3.js `TransactionInstruction`s and generated `@solana-program/*` instructions.
 
 ## Installation
 
@@ -12,23 +12,39 @@ npm install @blueshift-gg/quasar-svm
 
 ```ts
 import {
-  QuasarSvm,
-  createKeyedMintAccount, createKeyedAssociatedTokenAccount,
+	createKeyedAssociatedTokenAccount,
+	createKeyedMintAccount,
+	QuasarSvm,
 } from "@blueshift-gg/quasar-svm/web3.js";
 import { Keypair } from "@solana/web3.js";
-import { createTransferInstruction } from "@solana/spl-token";
-import { getTokenDecoder } from "@solana-program/token";
+import { getTokenDecoder, getTransferInstruction } from "@solana-program/token";
 
 const vm = new QuasarSvm(); // SPL programs loaded by default
 
-const authority = (await Keypair.generate()).address;
-const recipient = (await Keypair.generate()).address;
+const authority = await Keypair.generate();
+const recipient = (await Keypair.generate()).publicKey;
 
-const mint = createKeyedMintAccount((await Keypair.generate()).address, { decimals: 6, supply: 10_000n });
-const alice = await createKeyedAssociatedTokenAccount(authority, mint.accountId, 5_000n);
-const bob = await createKeyedAssociatedTokenAccount(recipient, mint.accountId, 0n);
+const mint = createKeyedMintAccount((await Keypair.generate()).publicKey, {
+	decimals: 6,
+	supply: 10_000n,
+});
+const alice = await createKeyedAssociatedTokenAccount(
+	authority.publicKey,
+	mint.accountId,
+	5_000n,
+);
+const bob = await createKeyedAssociatedTokenAccount(
+	recipient,
+	mint.accountId,
+	0n,
+);
 
-const ix = createTransferInstruction(alice.accountId, bob.accountId, authority, 1_000n);
+const ix = getTransferInstruction({
+	source: alice.accountId.toBase58(),
+	destination: bob.accountId.toBase58(),
+	authority,
+	amount: 1_000n,
+});
 
 const result = vm.processInstruction(ix, [mint, alice, bob]);
 
@@ -358,30 +374,47 @@ enum AccountState {
 
 ## Token Instruction Builders
 
-Use instruction builders from `@solana/spl-token`:
+Use instruction builders from `@solana-program/token` directly:
+- pass web3.js `Address` values as `address.toBase58()`
+- pass web3.js v3 signers directly
 
 ### Transfer
 
 ```ts
-import { createTransferInstruction } from "@solana/spl-token";
+import { getTransferInstruction } from "@solana-program/token";
 
-const ix = createTransferInstruction(source, destination, authority, 1_000n);
+const ix = getTransferInstruction({
+  source: source.toBase58(),
+  destination: destination.toBase58(),
+  authority,
+  amount: 1_000n,
+});
 ```
 
 ### MintTo
 
 ```ts
-import { createMintToInstruction } from "@solana/spl-token";
+import { getMintToInstruction } from "@solana-program/token";
 
-const ix = createMintToInstruction(mint, destination, mintAuthority, 5_000n);
+const ix = getMintToInstruction({
+  mint: mint.toBase58(),
+  token: destination.toBase58(),
+  mintAuthority,
+  amount: 5_000n,
+});
 ```
 
 ### Burn
 
 ```ts
-import { createBurnInstruction } from "@solana/spl-token";
+import { getBurnInstruction } from "@solana-program/token";
 
-const ix = createBurnInstruction(source, mint, authority, 500n);
+const ix = getBurnInstruction({
+  account: source.toBase58(),
+  mint: mint.toBase58(),
+  authority,
+  amount: 500n,
+});
 ```
 
 ## Result Token Helpers
@@ -429,23 +462,39 @@ const ata   = await createKeyedAssociatedTokenAccount(owner, mint, 5_000n, TOKEN
 
 ```ts
 import {
-  QuasarSvm,
-  createKeyedMintAccount, createKeyedAssociatedTokenAccount,
+	createKeyedAssociatedTokenAccount,
+	createKeyedMintAccount,
+	QuasarSvm,
 } from "@blueshift-gg/quasar-svm/web3.js";
 import { Keypair } from "@solana/web3.js";
-import { createTransferInstruction } from "@solana/spl-token";
-import { getTokenDecoder } from "@solana-program/token";
+import { getTokenDecoder, getTransferInstruction } from "@solana-program/token";
 
 const vm = new QuasarSvm(); // SPL programs loaded by default
 
-const authority = (await Keypair.generate()).address;
-const recipient = (await Keypair.generate()).address;
+const authority = await Keypair.generate();
+const recipient = (await Keypair.generate()).publicKey;
 
-const mint = createKeyedMintAccount((await Keypair.generate()).address, { decimals: 6, supply: 10_000n });
-const alice = await createKeyedAssociatedTokenAccount(authority, mint.accountId, 5_000n);
-const bob = await createKeyedAssociatedTokenAccount(recipient, mint.accountId, 0n);
+const mint = createKeyedMintAccount((await Keypair.generate()).publicKey, {
+	decimals: 6,
+	supply: 10_000n,
+});
+const alice = await createKeyedAssociatedTokenAccount(
+	authority.publicKey,
+	mint.accountId,
+	5_000n,
+);
+const bob = await createKeyedAssociatedTokenAccount(
+	recipient,
+	mint.accountId,
+	0n,
+);
 
-const ix = createTransferInstruction(alice.accountId, bob.accountId, authority, 1_000n);
+const ix = getTransferInstruction({
+	source: alice.accountId.toBase58(),
+	destination: bob.accountId.toBase58(),
+	authority,
+	amount: 1_000n,
+});
 
 const result = vm.processInstruction(ix, [mint, alice, bob]);
 
