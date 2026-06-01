@@ -35,6 +35,7 @@
     "build": "tsc",
     "build:native": "cargo build --release && cp target/release/libquasar_svm.* . 2>/dev/null; cp target/release/quasar_svm.dll . 2>/dev/null; true",
     "check-types": "tsc --noEmit",
+    "docs:sync-readme-examples": "bun scripts/sync-readme-examples.ts",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest --passWithNoTests",
     "prepare": "tsc",

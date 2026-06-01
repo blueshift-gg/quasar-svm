@@ -24,9 +24,9 @@ const vm = new QuasarSvm(); // SPL programs loaded by default
 const authority = (await Keypair.generate()).address;
 const recipient = (await Keypair.generate()).address;
 
-const mint  = createKeyedMintAccount((await Keypair.generate()).address, { decimals: 6, supply: 10_000n });
+const mint = createKeyedMintAccount((await Keypair.generate()).address, { decimals: 6, supply: 10_000n });
 const alice = await createKeyedAssociatedTokenAccount(authority, mint.accountId, 5_000n);
-const bob   = await createKeyedAssociatedTokenAccount(recipient, mint.accountId, 0n);
+const bob = await createKeyedAssociatedTokenAccount(recipient, mint.accountId, 0n);
 
 const ix = createTransferInstruction(alice.accountId, bob.accountId, authority, 1_000n);
 
@@ -441,16 +441,16 @@ const vm = new QuasarSvm(); // SPL programs loaded by default
 const authority = (await Keypair.generate()).address;
 const recipient = (await Keypair.generate()).address;
 
-const mint  = createKeyedMintAccount((await Keypair.generate()).address, { decimals: 6, supply: 10_000n });
+const mint = createKeyedMintAccount((await Keypair.generate()).address, { decimals: 6, supply: 10_000n });
 const alice = await createKeyedAssociatedTokenAccount(authority, mint.accountId, 5_000n);
-const bob   = await createKeyedAssociatedTokenAccount(recipient, mint.accountId, 0n);
+const bob = await createKeyedAssociatedTokenAccount(recipient, mint.accountId, 0n);
 
 const ix = createTransferInstruction(alice.accountId, bob.accountId, authority, 1_000n);
 
 const result = vm.processInstruction(ix, [mint, alice, bob]);
 
 result.assertSuccess();
-console.log(result.account(bob.accountId, getTokenDecoder())?.amount);   // 1000n
+console.log(result.account(bob.accountId, getTokenDecoder())?.amount); // 1000n
 console.log(result.account(alice.accountId, getTokenDecoder())?.amount); // 4000n
 ```
 

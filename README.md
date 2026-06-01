@@ -254,18 +254,17 @@ bun run test
 
 ### README example tests
 
-The fully-worked TypeScript README snippets are executed as part of the test suite.
+The fully-worked TypeScript README snippets are sourced from real `.ts` files under `examples/typescript/`.
 
 How it works:
 
-- The test file declares which README heading to validate.
-- The extracted snippet is typechecked against the local source tree using `tests/tsconfig.json` before execution.
-- `tests/helpers/readmeExamples.ts` finds the first ` ```ts ` block under that heading.
-- The extracted snippet is rewritten in memory so package imports like `@blueshift-gg/quasar-svm/web3.js` point at local source files in `bindings/node/src/...`.
-- The snippet is transpiled to a temporary `.mjs` file and executed.
+- Each README snippet has a matching source file in `examples/typescript/`.
+- `bun run docs:sync-readme-examples` copies those source files into the first ` ```ts ` block under the matching README heading.
+- `tests/readme-examples.test.ts` executes the source files directly.
+- Vitest aliases `@blueshift-gg/quasar-svm/web3.js` and `@blueshift-gg/quasar-svm/kit` to the local source entrypoints in `bindings/node/src/...` while the tests run.
 - `console.log` is intercepted while the snippet runs.
 - Expected output is declared inline using comments of the form `console.log(value); // expected-output`.
-- The test compares the captured log output to those expected comment strings.
+- The test compares the captured log output to those expected comment strings, and also checks that the README fences are in sync.
 
 ## License
 
