@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "module": "es2022",
+    "moduleResolution": "bundler",
+    "sourceMap": false,
+    "declaration": false,
+    "declarationMap": false,
+    "allowImportingTsExtensions": true,
+    "types": ["node"],
+    "paths": {
+      "@blueshift-gg/quasar-svm": ["./bindings/node/src/index.ts"],
+      "@blueshift-gg/quasar-svm/ffi": ["./bindings/node/src/ffi.ts"],
+      "@blueshift-gg/quasar-svm/web3.js": ["./bindings/node/src/web3.js/index.ts"],
+      "@blueshift-gg/quasar-svm/kit": ["./bindings/node/src/kit/index.ts"]
+    }
+  },
+  "include": ["examples/typescript/*.ts", "tests/**/*.ts"]
+}

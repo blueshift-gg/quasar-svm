@@ -34,7 +34,10 @@
   "scripts": {
     "build": "tsc",
     "build:native": "cargo build --release && cp target/release/libquasar_svm.* . 2>/dev/null; cp target/release/quasar_svm.dll . 2>/dev/null; true",
-    "check-types": "tsc --noEmit",
+    "check-types": "tsc --noEmit && tsc -p tsconfig.typecheck.json --noEmit",
+    "docs:sync-readme-examples": "bun scripts/sync-readme-examples.ts",
+    "format:examples": "biome check --write examples/typescript && bun run docs:sync-readme-examples",
+    "format:check": "biome check examples/typescript",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest --passWithNoTests",
     "prepare": "tsc",
@@ -59,7 +62,7 @@
     "@blueshift-gg/quasar-svm-win32-x64-msvc": "^0.1"
   },
   "peerDependencies": {
-    "@solana/web3.js": "git:blueshift-gg/solana-web3.js#v2"
+    "@solana/web3.js": "^3.0.0-rc.1"
   },
   "peerDependenciesMeta": {
     "@solana/web3.js": {
@@ -67,7 +70,8 @@
     }
   },
   "devDependencies": {
-    "@solana/web3.js": "github:blueshift-gg/solana-web3.js#v2",
+    "@biomejs/biome": "^2.2.4",
+    "@solana/web3.js": "3.0.0-rc.1",
     "@types/node": "^22.13.0",
     "typescript": "^5.9.0",
     "vitest": "^4.1.0"

@@ -64,25 +64,41 @@ assert_eq!(bob_token.amount, 1_000);
 ### TypeScript (web3.js)
 
 ```ts
-import { QuasarSvm, createKeyedMintAccount, createKeyedAssociatedTokenAccount } from "@blueshift-gg/quasar-svm/web3.js";
-import { Address } from "@solana/web3.js";
-import { getTransferInstruction } from "@solana/spl-token";
-import { getTokenDecoder } from "@solana-program/token";
+import {
+	createKeyedAssociatedTokenAccount,
+	createKeyedMintAccount,
+	QuasarSvm,
+} from "@blueshift-gg/quasar-svm/web3.js";
+import { Keypair } from "@solana/web3.js";
+import { getTokenDecoder, getTransferInstruction } from "@solana-program/token";
 
 const vm = new QuasarSvm(); // Token program loaded by default
 
-const authority = new Address("11111111111111111111111111111112"); // Example address
-const recipient = new Address("11111111111111111111111111111113");
+const randomAddress = async () => (await Keypair.generate()).publicKey;
 
-const mint = createKeyedMintAccount(new Address("TokenMint111111111111111111111111111"), { decimals: 6, supply: 10_000n });
-const alice = createKeyedAssociatedTokenAccount(authority, mint.accountId, 5_000n);
-const bob = createKeyedAssociatedTokenAccount(recipient, mint.accountId, 0n);
+const authority = await Keypair.generate();
+const recipient = await randomAddress();
+
+const mint = createKeyedMintAccount(await randomAddress(), {
+	decimals: 6,
+	supply: 10_000n,
+});
+const alice = await createKeyedAssociatedTokenAccount(
+	authority.publicKey,
+	mint.accountId,
+	5_000n,
+);
+const bob = await createKeyedAssociatedTokenAccount(
+	recipient,
+	mint.accountId,
+	0n,
+);
 
 const ix = getTransferInstruction({
-  source: alice.accountId,
-  destination: bob.accountId,
-  owner: authority,
-  amount: 1_000n,
+	source: alice.accountId.toBase58(),
+	destination: bob.accountId.toBase58(),
+	authority,
+	amount: 1_000n,
 });
 
 const result = vm.processInstruction(ix, [mint, alice, bob]);
@@ -94,24 +110,45 @@ console.log(result.account(bob.accountId, getTokenDecoder())?.amount); // 1000n
 ### TypeScript (kit)
 
 ```ts
-import { QuasarSvm, createKeyedMintAccount, createKeyedAssociatedTokenAccount } from "@blueshift-gg/quasar-svm/kit";
-import { address } from "@solana/addresses";
-import { getTransferInstruction, getTokenDecoder } from "@solana-program/token";
+import {
+	createKeyedAssociatedTokenAccount,
+	createKeyedMintAccount,
+	QuasarSvm,
+} from "@blueshift-gg/quasar-svm/kit";
+import { getAddressFromPublicKey } from "@solana/addresses";
+import { generateKeyPair } from "@solana/keys";
+import { createSignerFromKeyPair } from "@solana/signers";
+import { getTokenDecoder, getTransferInstruction } from "@solana-program/token";
 
 const vm = new QuasarSvm(); // Token program loaded by default
 
-const authority = address("11111111111111111111111111111112"); // Example address
-const recipient = address("11111111111111111111111111111113");
+const randomAddress = async () =>
+	getAddressFromPublicKey((await generateKeyPair()).publicKey);
 
-const mint = createKeyedMintAccount(address("TokenMint111111111111111111111111111"), { decimals: 6, supply: 10_000n });
-const alice = await createKeyedAssociatedTokenAccount(authority, mint.address, 5_000n);
-const bob = await createKeyedAssociatedTokenAccount(recipient, mint.address, 0n);
+const authorityKeyPair = await generateKeyPair();
+const authority = await createSignerFromKeyPair(authorityKeyPair);
+const recipient = await randomAddress();
+
+const mint = createKeyedMintAccount(await randomAddress(), {
+	decimals: 6,
+	supply: 10_000n,
+});
+const alice = await createKeyedAssociatedTokenAccount(
+	authority.address,
+	mint.address,
+	5_000n,
+);
+const bob = await createKeyedAssociatedTokenAccount(
+	recipient,
+	mint.address,
+	0n,
+);
 
 const ix = getTransferInstruction({
-  source: alice.address,
-  destination: bob.address,
-  owner: authority,
-  amount: 1_000n,
+	source: alice.address,
+	destination: bob.address,
+	authority,
+	amount: 1_000n,
 });
 
 const result = vm.processInstruction(ix, [mint, alice, bob]);
@@ -171,7 +208,7 @@ with QuasarSvm() as svm:
 |-------|--------|-------------|
 | **Rust** | [svm/README.md](svm/README.md) | Core SVM engine: `QuasarSvm`, `ExecutionResult`, `Account`, token helpers |
 | **Python** | [bindings/python/README.md](bindings/python/README.md) | Python API using `solders` types (`Pubkey`, `Instruction`, `AccountMeta`) |
-| **web3.js** | [bindings/node/src/web3.js/README.md](bindings/node/src/web3.js/README.md) | TypeScript API using `@solana/web3.js` types (`PublicKey`, `KeyedAccountInfo`) |
+| **web3.js** | [bindings/node/src/web3.js/README.md](bindings/node/src/web3.js/README.md) | TypeScript API using `@solana/web3.js` types (`Address`, `KeyedAccountInfo`) |
 | **kit** | [bindings/node/src/kit/README.md](bindings/node/src/kit/README.md) | TypeScript API using `@solana/kit` types (`Address`, `Account<T>`) |
 
 ## Exports
@@ -179,11 +216,11 @@ with QuasarSvm() as svm:
 | Import Path | Address Type | Account Type | Description |
 |-------------|-------------|--------------|-------------|
 | `quasar_svm` | `solders.Pubkey` | `KeyedAccount` | Python API using `solders` |
-| `@blueshift-gg/quasar-svm/web3.js` | `PublicKey` | `KeyedAccount` | `@solana/web3.js` API |
+| `@blueshift-gg/quasar-svm/web3.js` | `Address` | `KeyedAccountInfo` | `@solana/web3.js` API |
 | `@blueshift-gg/quasar-svm/kit` | `Address` | `Account` | `@solana/kit` API |
 | `@blueshift-gg/quasar-svm/ffi` | — | — | Low-level native bindings |
 
-All APIs expose the same core functionality with idiomatic types for each language. The web3.js layer additionally provides `toKeyedAccountInfo` / `fromKeyedAccountInfo` for interop with legacy code.
+All APIs expose the same core functionality with idiomatic types for each language.
 
 ## Workspace
 
@@ -249,6 +286,20 @@ bun run build
 bun run build:native
 bun run test
 ```
+
+### README example tests
+
+The fully-worked TypeScript README snippets are sourced from real `.ts` files under `examples/typescript/`.
+
+How it works:
+
+- Each README snippet has a matching source file in `examples/typescript/`.
+- `bun run docs:sync-readme-examples` copies those source files into the first ` ```ts ` block under the matching README heading.
+- `tests/readme-examples.test.ts` executes the source files directly.
+- Vitest aliases `@blueshift-gg/quasar-svm/web3.js` and `@blueshift-gg/quasar-svm/kit` to the local source entrypoints in `bindings/node/src/...` while the tests run.
+- `console.log` is intercepted while the snippet runs.
+- Expected output is declared inline using comments of the form `console.log(value); // expected-output`.
+- The test compares the captured log output to those expected comment strings, and also checks that the README fences are in sync.
 
 ## License
 

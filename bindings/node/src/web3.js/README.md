@@ -1,6 +1,6 @@
 # QuasarSVM - web3.js Layer
 
-QuasarSVM web3.js layer provides Solana virtual machine execution with full interoperability with `@solana/web3.js`. This layer uses `Address` (class) from web3.js and `KeyedAccountInfo` for account representation.
+QuasarSVM web3.js layer provides Solana virtual machine execution with full interoperability with `@solana/web3.js`. This layer uses `Address` (class) from web3.js and `KeyedAccountInfo` for account representation, and it can execute both native web3.js `TransactionInstruction`s and generated `@solana-program/*` instructions.
 
 ## Installation
 
@@ -12,23 +12,39 @@ npm install @blueshift-gg/quasar-svm
 
 ```ts
 import {
-  QuasarSvm,
-  createKeyedMintAccount, createKeyedAssociatedTokenAccount,
-  tokenTransfer,
+	createKeyedAssociatedTokenAccount,
+	createKeyedMintAccount,
+	QuasarSvm,
 } from "@blueshift-gg/quasar-svm/web3.js";
 import { Keypair } from "@solana/web3.js";
-import { getTokenDecoder } from "@solana-program/token";
+import { getTokenDecoder, getTransferInstruction } from "@solana-program/token";
 
 const vm = new QuasarSvm(); // SPL programs loaded by default
 
-const authority = (await Keypair.generate()).publicKey;
+const authority = await Keypair.generate();
 const recipient = (await Keypair.generate()).publicKey;
 
-const mint  = createKeyedMintAccount((await Keypair.generate()).publicKey, { decimals: 6, supply: 10_000n });
-const alice = createKeyedAssociatedTokenAccount(authority, mint.accountId, 5_000n);
-const bob   = createKeyedAssociatedTokenAccount(recipient, mint.accountId, 0n);
+const mint = createKeyedMintAccount((await Keypair.generate()).publicKey, {
+	decimals: 6,
+	supply: 10_000n,
+});
+const alice = await createKeyedAssociatedTokenAccount(
+	authority.publicKey,
+	mint.accountId,
+	5_000n,
+);
+const bob = await createKeyedAssociatedTokenAccount(
+	recipient,
+	mint.accountId,
+	0n,
+);
 
-const ix = tokenTransfer(alice.accountId, bob.accountId, authority, 1_000n);
+const ix = getTransferInstruction({
+	source: alice.accountId.toBase58(),
+	destination: bob.accountId.toBase58(),
+	authority,
+	amount: 1_000n,
+});
 
 const result = vm.processInstruction(ix, [mint, alice, bob]);
 
@@ -55,9 +71,11 @@ type KeyedAccountInfo = {
   accountId: Address;
   accountInfo: {
     owner: Address;
-    lamports: number | bigint;
+    lamports: bigint;
     data: Buffer;
     executable: boolean;
+    rentEpoch: bigint;
+    space: bigint;
   };
 };
 ```
@@ -243,11 +261,11 @@ const account = createKeyedSystemAccount(address, 1_000_000_000n);
 Create a pre-initialized SPL Token mint:
 
 ```ts
-import { createKeyedMintAccount, Address } from "@blueshift-gg/quasar-svm/web3.js";
-import { Keypair } from "@solana/web3.js";
+import { createKeyedMintAccount } from "@blueshift-gg/quasar-svm/web3.js";
+import { Address, Keypair } from "@solana/web3.js";
 
 // Address is required as first parameter
-const address = (await Keypair.generate()).publicKey;
+const address = (await Keypair.generate()).address;
 const account = createKeyedMintAccount(address, { decimals: 6 });
 const account = createKeyedMintAccount(address, { decimals: 6, supply: 10_000n });
 
@@ -305,14 +323,14 @@ Derive the ATA address automatically and create a pre-initialized token account.
 ```ts
 import { createKeyedAssociatedTokenAccount } from "@blueshift-gg/quasar-svm/web3.js";
 
-const account = createKeyedAssociatedTokenAccount(owner, mint, 5_000n);
+const account = await createKeyedAssociatedTokenAccount(owner, mint, 5_000n);
 account.accountId; // derived ATA address
 
 // Token-2022
-const account = createKeyedAssociatedTokenAccount(owner, mint, 5_000n, TOKEN_2022_PROGRAM_ID);
+const account = await createKeyedAssociatedTokenAccount(owner, mint, 5_000n, TOKEN_2022_PROGRAM_ID);
 ```
 
-**Note**: Synchronous — uses `Address.findProgramAddressSync`.
+**Note**: Async — uses `Address.findProgramAddress`.
 
 ## Token Types
 
@@ -356,31 +374,47 @@ enum AccountState {
 
 ## Token Instruction Builders
 
-All builders accept an optional `tokenProgramId` parameter (defaults to SPL Token). Pass `TOKEN_2022_PROGRAM_ID` for Token-2022.
+Use instruction builders from `@solana-program/token` directly:
+- pass web3.js `Address` values as `address.toBase58()`
+- pass web3.js v3 signers directly
 
 ### Transfer
 
 ```ts
-import { tokenTransfer } from "@blueshift-gg/quasar-svm/web3.js";
+import { getTransferInstruction } from "@solana-program/token";
 
-const ix = tokenTransfer(source, destination, authority, 1_000n);
-const ix = tokenTransfer(source, destination, authority, 1_000n, TOKEN_2022_PROGRAM_ID);
+const ix = getTransferInstruction({
+  source: source.toBase58(),
+  destination: destination.toBase58(),
+  authority,
+  amount: 1_000n,
+});
 ```
 
 ### MintTo
 
 ```ts
-import { tokenMintTo } from "@blueshift-gg/quasar-svm/web3.js";
+import { getMintToInstruction } from "@solana-program/token";
 
-const ix = tokenMintTo(mint, destination, mintAuthority, 5_000n);
+const ix = getMintToInstruction({
+  mint: mint.toBase58(),
+  token: destination.toBase58(),
+  mintAuthority,
+  amount: 5_000n,
+});
 ```
 
 ### Burn
 
 ```ts
-import { tokenBurn } from "@blueshift-gg/quasar-svm/web3.js";
+import { getBurnInstruction } from "@solana-program/token";
 
-const ix = tokenBurn(source, mint, authority, 500n);
+const ix = getBurnInstruction({
+  account: source.toBase58(),
+  mint: mint.toBase58(),
+  authority,
+  amount: 500n,
+});
 ```
 
 ## Result Token Helpers
@@ -406,8 +440,8 @@ Derive associated token account addresses without creating accounts:
 ```ts
 import { Address } from "@solana/web3.js";
 
-const [ata] = Address.findProgramAddressSync(
-  [wallet.toBuffer(), tokenProgramId.toBuffer(), mint.toBuffer()],
+const [ata] = await Address.findProgramAddress(
+  [wallet.toBytes(), tokenProgramId.toBytes(), mint.toBytes()],
   new Address(SPL_ASSOCIATED_TOKEN_PROGRAM_ID),
 );
 ```
@@ -421,35 +455,51 @@ All factories that create token-related accounts accept an optional `tokenProgra
 ```ts
 const mint  = createKeyedMintAccount(mintAddr, { decimals: 6 }, TOKEN_2022_PROGRAM_ID);
 const token = createKeyedTokenAccount(tokenAddr, { mint, owner, amount: 5_000n }, TOKEN_2022_PROGRAM_ID);
-const ata   = createKeyedAssociatedTokenAccount(owner, mint, 5_000n, TOKEN_2022_PROGRAM_ID);
+const ata   = await createKeyedAssociatedTokenAccount(owner, mint, 5_000n, TOKEN_2022_PROGRAM_ID);
 ```
 
 ## Full Example
 
 ```ts
 import {
-  QuasarSvm,
-  createKeyedMintAccount, createKeyedAssociatedTokenAccount,
-  tokenTransfer,
+	createKeyedAssociatedTokenAccount,
+	createKeyedMintAccount,
+	QuasarSvm,
 } from "@blueshift-gg/quasar-svm/web3.js";
 import { Keypair } from "@solana/web3.js";
-import { getTokenDecoder } from "@solana-program/token";
+import { getTokenDecoder, getTransferInstruction } from "@solana-program/token";
 
 const vm = new QuasarSvm(); // SPL programs loaded by default
 
-const authority = (await Keypair.generate()).publicKey;
+const authority = await Keypair.generate();
 const recipient = (await Keypair.generate()).publicKey;
 
-const mint  = createKeyedMintAccount((await Keypair.generate()).publicKey, { decimals: 6, supply: 10_000n });
-const alice = createKeyedAssociatedTokenAccount(authority, mint.accountId, 5_000n);
-const bob   = createKeyedAssociatedTokenAccount(recipient, mint.accountId, 0n);
+const mint = createKeyedMintAccount((await Keypair.generate()).publicKey, {
+	decimals: 6,
+	supply: 10_000n,
+});
+const alice = await createKeyedAssociatedTokenAccount(
+	authority.publicKey,
+	mint.accountId,
+	5_000n,
+);
+const bob = await createKeyedAssociatedTokenAccount(
+	recipient,
+	mint.accountId,
+	0n,
+);
 
-const ix = tokenTransfer(alice.accountId, bob.accountId, authority, 1_000n);
+const ix = getTransferInstruction({
+	source: alice.accountId.toBase58(),
+	destination: bob.accountId.toBase58(),
+	authority,
+	amount: 1_000n,
+});
 
 const result = vm.processInstruction(ix, [mint, alice, bob]);
 
 result.assertSuccess();
-console.log(result.account(bob.accountId, getTokenDecoder())?.amount);   // 1000n
+console.log(result.account(bob.accountId, getTokenDecoder())?.amount); // 1000n
 console.log(result.account(alice.accountId, getTokenDecoder())?.amount); // 4000n
 ```
 
@@ -461,7 +511,7 @@ The web3.js layer differs from the kit layer in the following ways:
 |---------|---------------|-----------|
 | Address Type | `Address` (class from `@solana/web3.js`) | `Address` (branded string from `@solana/addresses`) |
 | Account Type | `KeyedAccountInfo` | `Account<T>` from `@solana/accounts` |
-| ATA Derivation | Synchronous (`findProgramAddressSync`) | Async (`getProgramDerivedAddress`) |
+| ATA Derivation | Async (`findProgramAddress`) | Async (`getProgramDerivedAddress`) |
 | Mint/Token Types | Custom interfaces | `MintArgs`/`TokenArgs` from `@solana-program/token` |
 | Account Field Name | `accountId` | `address` |
 
@@ -477,12 +527,7 @@ Both layers expose the same functionality with different type systems to match t
 - `createKeyedSystemAccount(address, lamports?)`
 - `createKeyedMintAccount(address, opts, tokenProgramId?)`
 - `createKeyedTokenAccount(address | opts, opts?, tokenProgramId?)`
-- `createKeyedAssociatedTokenAccount(owner, mint, amount, tokenProgramId?)`
-
-### Instruction Builders
-- `tokenTransfer(source, destination, authority, amount, tokenProgramId?)`
-- `tokenMintTo(mint, destination, authority, amount, tokenProgramId?)`
-- `tokenBurn(source, mint, authority, amount, tokenProgramId?)`
+- `createKeyedAssociatedTokenAccount(owner, mint, amount, tokenProgramId?)` (async)
 
 ### Types
 - `KeyedAccountInfo`
