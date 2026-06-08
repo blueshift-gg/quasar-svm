@@ -265,7 +265,7 @@ import { createKeyedMintAccount } from "@blueshift-gg/quasar-svm/web3.js";
 import { Address, Keypair } from "@solana/web3.js";
 
 // Address is required as first parameter
-const address = (await Keypair.generate()).address;
+const address = (await Keypair.generate()).publicKey;
 const account = createKeyedMintAccount(address, { decimals: 6 });
 const account = createKeyedMintAccount(address, { decimals: 6, supply: 10_000n });
 
