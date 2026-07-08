@@ -21,36 +21,36 @@ include = [
 
 [dependencies]
 # Core SVM execution
-agave-feature-set = { version = "3.1", features = ["agave-unstable-api"] }
-agave-syscalls = "3.1"
-solana-bpf-loader-program = { version = "3.1", features = ["agave-unstable-api"] }
-solana-program-runtime = "3.0"
-solana-system-program = { version = "3.1", features = ["agave-unstable-api"] }
-solana-transaction-context = { version = "3.1", features = ["dev-context-only-utils"] }
+agave-feature-set = { version = "4.1", features = ["agave-unstable-api"] }
+solana-syscalls = { version = "4.1", features = ["agave-unstable-api"] }
+solana-bpf-loader-program = { version = "4.1", features = ["agave-unstable-api"] }
+solana-program-runtime = { version = "4.1", features = ["metrics"] }
+solana-system-program = { version = "4.1", features = ["agave-unstable-api"] }
+solana-transaction-context = { version = "4.1", features = ["dev-context-only-utils"] }
 
 # Types
-solana-account = "3.2"
+solana-account = "4.3"
 solana-clock = "3.0"
-solana-compute-budget = { version = "3.1", features = ["agave-unstable-api"] }
+solana-compute-budget = { version = "4.1", features = ["agave-unstable-api"] }
 solana-epoch-rewards = "3.0"
 solana-epoch-schedule = "3.0"
 solana-hash = "3.1"
 solana-instruction = "3.0"
 solana-instruction-error = "2.0"
 solana-instructions-sysvar = "3.0"
-solana-loader-v3-interface = { version = "6.1", features = ["serde"] }
-solana-message = "3.0.1"
+solana-loader-v3-interface = { version = "7.0", features = ["serde"] }
+solana-message = "4.1"
 solana-precompile-error = "3.0"
 solana-pubkey = "4.0"
-solana-rent = "3.0"
+solana-rent = "4.2"
 solana-sdk-ids = "3.0"
 solana-slot-hashes = "3.0"
-solana-stake-interface = "2.0.1"
-solana-svm-callback = "3.1"
-solana-svm-log-collector = "3.1"
-solana-svm-timings = "3.1"
-solana-svm-transaction = "3.0"
-solana-sysvar = "3.0"
+solana-stake-interface = "3.1"
+solana-svm-callback = "4.1"
+solana-svm-log-collector = "4.1"
+solana-svm-timings = "4.1"
+solana-svm-transaction = "4.1"
+solana-sysvar = "4.0"
 solana-sysvar-id = "3.0"
 solana-transaction-error = "3.0"
 
