@@ -23,11 +23,11 @@
         "vitest": "^4.1.0",
       },
       "optionalDependencies": {
-        "@blueshift-gg/quasar-svm-darwin-arm64": "^0.1",
-        "@blueshift-gg/quasar-svm-darwin-x64": "^0.1",
-        "@blueshift-gg/quasar-svm-linux-arm64-gnu": "^0.1",
-        "@blueshift-gg/quasar-svm-linux-x64-gnu": "^0.1",
-        "@blueshift-gg/quasar-svm-win32-x64-msvc": "^0.1",
+        "@blueshift-gg/quasar-svm-darwin-arm64": "0.1.5",
+        "@blueshift-gg/quasar-svm-darwin-x64": "0.1.5",
+        "@blueshift-gg/quasar-svm-linux-arm64-gnu": "0.1.5",
+        "@blueshift-gg/quasar-svm-linux-x64-gnu": "0.1.5",
+        "@blueshift-gg/quasar-svm-win32-x64-msvc": "0.1.5",
       },
       "peerDependencies": {
         "@solana/web3.js": "^3.0.0-rc.1",
@@ -56,15 +56,15 @@
 
     "@biomejs/cli-win32-x64": ["@biomejs/cli-win32-x64@2.4.16", "", { "os": "win32", "cpu": "x64" }, "sha512-Kp85jgoBHa05gix6UIRjfCDiUV3w/8VIdZ247VyyO2gEjaw12WEVhdIjlxp/AMzXxqxQwbxNTDVZ3Mwd2RG5rw=="],
 
-    "@blueshift-gg/quasar-svm-darwin-arm64": ["@blueshift-gg/quasar-svm-darwin-arm64@0.1.4", "", { "os": "darwin", "cpu": "arm64" }, "sha512-kGjuQk+0F0Q/RlGoC5E9PY7jios/aU82H4kIuyEIoiW9amb4fyxjdOmJ9SEzN1Ir0zZNKbeWvN2FKGlTY7z2sA=="],
+    "@blueshift-gg/quasar-svm-darwin-arm64": ["@blueshift-gg/quasar-svm-darwin-arm64@0.1.5", "", { "os": "darwin", "cpu": "arm64" }, "sha512-ty7RUgWRf2ive7BQOydPEq5+119oVP16vK4ugsbEI21bDVp0avgikoNh6I+j7zx8jTPcv90vx/FCMS5Ld5tl9w=="],
 
-    "@blueshift-gg/quasar-svm-darwin-x64": ["@blueshift-gg/quasar-svm-darwin-x64@0.1.4", "", { "os": "darwin", "cpu": "x64" }, "sha512-blymlaCBO43BWju/rZQgmGffLEv2MHGEWQTwaQrLq5R5FVv82XyvNt3w6qcZaMMLIWgGCH4wvT1MOpUITNrIPg=="],
+    "@blueshift-gg/quasar-svm-darwin-x64": ["@blueshift-gg/quasar-svm-darwin-x64@0.1.5", "", { "os": "darwin", "cpu": "x64" }, "sha512-IipaN9A6X1MbKRr6mPs5cn9ImcODCNLPb8VCiQP4CXwv5n3YtZDftOGvT/sSpvzhSByGBuxmbdHO8slyVLCJxA=="],
 
-    "@blueshift-gg/quasar-svm-linux-arm64-gnu": ["@blueshift-gg/quasar-svm-linux-arm64-gnu@0.1.4", "", { "os": "linux", "cpu": "arm64" }, "sha512-JpaAlC1B/Bn7BOCvT6ayo/FoHBQ9csQ/4fhHmo051KSTl8R7pVRT5LpJkj4sCtGsK39E71q12gimDMC2nFeY0w=="],
+    "@blueshift-gg/quasar-svm-linux-arm64-gnu": ["@blueshift-gg/quasar-svm-linux-arm64-gnu@0.1.5", "", { "os": "linux", "cpu": "arm64" }, "sha512-+hKg595AKMSMBySplyczxeKQpM3UkdwvvULM7wE63/UB0Js6/UVi6mc0v59pcReErQGx46yXTNip7wthlXhrBg=="],
 
-    "@blueshift-gg/quasar-svm-linux-x64-gnu": ["@blueshift-gg/quasar-svm-linux-x64-gnu@0.1.4", "", { "os": "linux", "cpu": "x64" }, "sha512-NNjyelSKlJNMX+4UDhrK/3qw8jUIxls46fwq8ph22P5Y4XNYFS9nZtkl6XbYrCH4gBdj9b/WLT1dL8LXxB15Xw=="],
+    "@blueshift-gg/quasar-svm-linux-x64-gnu": ["@blueshift-gg/quasar-svm-linux-x64-gnu@0.1.5", "", { "os": "linux", "cpu": "x64" }, "sha512-b7LhZU4jIFNp3o49qLgVBUjntyFnewWE93l6+OJnEApUzQm+nCaIu5aRueG101Nn5Xomw23rVKduRskWrUgFCg=="],
 
-    "@blueshift-gg/quasar-svm-win32-x64-msvc": ["@blueshift-gg/quasar-svm-win32-x64-msvc@0.1.4", "", { "os": "win32", "cpu": "x64" }, "sha512-Lb5WGHmsVDN8rAG6tmeFEFfNqElzpnu/L7q0EdrBJ33dpvNu0c37uek7sj33oQ1iVBP2GxMiyDBpj270VKC0oQ=="],
+    "@blueshift-gg/quasar-svm-win32-x64-msvc": ["@blueshift-gg/quasar-svm-win32-x64-msvc@0.1.5", "", { "os": "win32", "cpu": "x64" }, "sha512-+T8giW1+1/u4Mv0EgIohkWA2t5g8py1ZTHZxIu5U4TWI3mU70DBHG2GkdhudSBOl/OhVErE13+WZfvwM3QL2ew=="],
 
     "@emnapi/core": ["@emnapi/core@1.9.1", "", { "dependencies": { "@emnapi/wasi-threads": "1.2.0", "tslib": "^2.4.0" } }, "sha512-mukuNALVsoix/w1BJwFzwXBN/dHeejQtuVzcDsfOEsdpCumXb/E9j8w11h5S54tT1xhifGfbbSm/ICrObRb3KA=="],
 

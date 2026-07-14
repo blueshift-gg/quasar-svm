@@ -1,6 +1,6 @@
 {
   "name": "@blueshift-gg/quasar-svm",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "description": "Node.js bindings for quasar-svm (Solana SVM execution engine)",
   "packageManager": "bun@1.3.11",
   "main": "dist/index.js",
@@ -55,11 +55,11 @@
     "koffi": "^2.9.0"
   },
   "optionalDependencies": {
-    "@blueshift-gg/quasar-svm-darwin-arm64": "^0.1",
-    "@blueshift-gg/quasar-svm-darwin-x64": "^0.1",
-    "@blueshift-gg/quasar-svm-linux-arm64-gnu": "^0.1",
-    "@blueshift-gg/quasar-svm-linux-x64-gnu": "^0.1",
-    "@blueshift-gg/quasar-svm-win32-x64-msvc": "^0.1"
+    "@blueshift-gg/quasar-svm-darwin-arm64": "0.1.5",
+    "@blueshift-gg/quasar-svm-darwin-x64": "0.1.5",
+    "@blueshift-gg/quasar-svm-linux-arm64-gnu": "0.1.5",
+    "@blueshift-gg/quasar-svm-linux-x64-gnu": "0.1.5",
+    "@blueshift-gg/quasar-svm-win32-x64-msvc": "0.1.5"
   },
   "peerDependencies": {
     "@solana/web3.js": "^3.0.0-rc.1"
