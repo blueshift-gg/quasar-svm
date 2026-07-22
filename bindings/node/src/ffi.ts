@@ -5,6 +5,7 @@ import { createRequire } from "module";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
+const fs = require("fs") as typeof import("fs");
 
 const PLATFORMS: Record<string, { pkg: string; lib: string; rootLib: string }> = {
   "darwin-arm64": { pkg: "@blueshift-gg/quasar-svm-darwin-arm64",   lib: "libquasar_svm.dylib", rootLib: "libquasar_svm.dylib" },
@@ -23,22 +24,20 @@ function getLibraryPath(): string {
     throw new Error(`Unsupported platform: ${key}. Set QUASAR_SVM_LIB to the path of the shared library.`);
   }
 
-  // 1. Try platform-specific npm package (published to npm)
+  const pkgRoot = findPackageRoot(__dirname);
+
+  // 1. Prefer a local build while developing the package.
+  const devBin = path.join(pkgRoot, "target", "release", triple.lib);
+  try { fs.accessSync(devBin); return devBin; } catch {}
+
+  // 2. Binary at package root (bundled release artifact).
+  const rootBin = path.join(pkgRoot, triple.rootLib);
+  try { fs.accessSync(rootBin); return rootBin; } catch {}
+
+  // 3. Platform-specific npm package.
   try {
     const pkgDir = path.dirname(require.resolve(`${triple.pkg}/package.json`));
     return path.join(pkgDir, triple.lib);
-  } catch {}
-
-  // 2. Binary at package root (bundled in git repo)
-  const pkgRoot = path.resolve(__dirname, "..");
-  const rootBin = path.join(pkgRoot, triple.rootLib);
-  try { require("fs").accessSync(rootBin); return rootBin; } catch {}
-
-  // 3. Local dev build
-  const devBin = path.join(pkgRoot, "target", "release", triple.lib);
-  try {
-    require("fs").accessSync(devBin);
-    return devBin;
   } catch {
     throw new Error(
       `Failed to locate quasar-svm native library. Tried:\n` +
@@ -50,6 +49,18 @@ function getLibraryPath(): string {
       `  - Build locally: npm run build:native\n` +
       `  - Set QUASAR_SVM_LIB environment variable to the library path`
     );
+  }
+}
+
+function findPackageRoot(start: string): string {
+  let current = start;
+  while (true) {
+    if (fs.existsSync(path.join(current, "package.json"))) return current;
+    const parent = path.dirname(current);
+    if (parent === current) {
+      throw new Error(`Could not find @blueshift-gg/quasar-svm package root from ${start}`);
+    }
+    current = parent;
   }
 }
 
@@ -71,6 +82,10 @@ export const quasar_svm_warp_to_slot = lib.func(
   "int32_t quasar_svm_warp_to_slot(void *svm, uint64_t slot)"
 );
 
+export const quasar_svm_warp_to_timestamp = lib.func(
+  "int32_t quasar_svm_warp_to_timestamp(void *svm, int64_t timestamp)"
+);
+
 export const quasar_svm_set_rent = lib.func(
   "int32_t quasar_svm_set_rent(void *svm, uint64_t lamports_per_byte_year)"
 );
@@ -85,6 +100,10 @@ export const quasar_svm_set_compute_budget = lib.func(
 
 export const quasar_svm_process_transaction = lib.func(
   "int32_t quasar_svm_process_transaction(void *svm, const void *instructions, uint64_t instructions_len, const void *accounts, uint64_t accounts_len, _Out_ void **result_out, _Out_ uint64_t *result_len_out)"
+);
+
+export const quasar_svm_simulate_transaction = lib.func(
+  "int32_t quasar_svm_simulate_transaction(void *svm, const void *instructions, uint64_t instructions_len, const void *accounts, uint64_t accounts_len, _Out_ void **result_out, _Out_ uint64_t *result_len_out)"
 );
 
 export const quasar_result_free = lib.func(

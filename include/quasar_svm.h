@@ -40,6 +40,8 @@ int32_t quasar_svm_set_clock(QuasarSvm *svm,
 
 int32_t quasar_svm_warp_to_slot(QuasarSvm *svm, uint64_t slot);
 
+int32_t quasar_svm_warp_to_timestamp(QuasarSvm *svm, int64_t timestamp);
+
 int32_t quasar_svm_set_rent(QuasarSvm *svm, uint64_t lamports_per_byte_year);
 
 int32_t quasar_svm_set_epoch_schedule(QuasarSvm *svm,
@@ -64,6 +66,17 @@ int32_t quasar_svm_process_transaction(QuasarSvm *svm,
                                        uint64_t accounts_len,
                                        uint8_t **result_out,
                                        uint64_t *result_len_out);
+
+/**
+ * Simulate multiple instructions as one atomic transaction without committing state.
+ */
+int32_t quasar_svm_simulate_transaction(QuasarSvm *svm,
+                                        const uint8_t *instructions,
+                                        uint64_t instructions_len,
+                                        const uint8_t *accounts,
+                                        uint64_t accounts_len,
+                                        uint8_t **result_out,
+                                        uint64_t *result_len_out);
 
 /**
  * Free a serialized result buffer previously returned by an execution function.
