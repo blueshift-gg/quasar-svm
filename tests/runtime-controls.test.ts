@@ -66,6 +66,17 @@ describe("runtime controls", () => {
     committed.assertSuccess();
     expect(committed.account(bob.address, getTokenDecoder())?.amount).toBe(1_000n);
 
+    svm.setComputeBudget(1n);
+    expect(
+      svm.processInstruction(
+        transfer(alice.address, bob.address, authority, 1n),
+        [],
+      ).status,
+    ).toEqual({
+      ok: false,
+      error: { type: "Runtime", message: "ProgramFailedToComplete" },
+    });
+
     svm.warpToTimestamp(42n);
   });
 });

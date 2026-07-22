@@ -1768,7 +1768,6 @@ dependencies = [
  "solana-instruction",
  "solana-instruction-error",
  "solana-message",
- "solana-program-error",
  "solana-pubkey 4.1.0",
  "solana-rent",
  "solana-sdk-ids",

@@ -75,6 +75,15 @@ export class ExecutionResultBase {
         `expected error code ${expected.code}, got ${actual.code}`
       );
     }
+    if (
+      "message" in expected &&
+      "message" in actual &&
+      actual.message !== expected.message
+    ) {
+      throw new Error(
+        `expected runtime error ${JSON.stringify(expected.message)}, got ${JSON.stringify(actual.message)}`
+      );
+    }
   }
 
   assertCustomError(code: number): void {

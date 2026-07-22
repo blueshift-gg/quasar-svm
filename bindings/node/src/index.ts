@@ -24,15 +24,14 @@ export type ProgramError =
   | { type: "Custom"; code: number }
   | { type: "Runtime"; message: string };
 
-/** Map a wire status code + error message into a ProgramError.
- *  Codes match Rust `program_error_to_i32`: known errors are negative, Custom(n) is positive. */
+/** Map the stable FFI error discriminant into a ProgramError. */
 export function programErrorFromStatus(
   status: number,
-  errorMessage: string | null
+  errorMessage: string | null,
+  customErrorCode = 0,
 ): ProgramError {
-  if (status > 0) return { type: "Custom", code: status };
-
   switch (status) {
+    case 1: return { type: "Custom", code: customErrorCode };
     case -1: return { type: "InvalidArgument" };
     case -2: return { type: "InvalidInstructionData" };
     case -3: return { type: "InvalidAccountData" };
@@ -51,6 +50,7 @@ export function programErrorFromStatus(
     case -23: return { type: "ArithmeticOverflow" };
     case -24: return { type: "Immutable" };
     case -25: return { type: "IncorrectAuthority" };
+    case -26: return { type: "Runtime", message: errorMessage ?? "unknown error" };
     default: return { type: "Runtime", message: errorMessage ?? "unknown error" };
   }
 }
