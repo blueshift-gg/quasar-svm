@@ -46,8 +46,8 @@ impl Default for Sysvars {
             epoch_schedule,
             last_restart_slot: LastRestartSlot::default(),
             rent: Rent {
-                lamports_per_byte: 6960,
-                exemption_threshold: 1.0f64.to_le_bytes(),
+                lamports_per_byte_year: 6960,
+                exemption_threshold: 1.0,
                 burn_percent: 0,
             },
             slot_hashes,

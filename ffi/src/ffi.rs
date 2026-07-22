@@ -128,8 +128,8 @@ pub extern "C" fn quasar_svm_set_rent(svm: *mut QuasarSvm, lamports_per_byte_yea
     }
     let svm = unsafe { &mut *svm };
     svm.sysvars.rent = solana_rent::Rent {
-        lamports_per_byte: lamports_per_byte_year,
-        exemption_threshold: 1.0f64.to_le_bytes(),
+        lamports_per_byte_year,
+        exemption_threshold: 1.0,
         burn_percent: 0,
     };
     QUASAR_OK

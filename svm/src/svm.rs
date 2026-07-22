@@ -1,8 +1,12 @@
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
+use std::sync::Arc;
 
 use agave_feature_set::FeatureSet;
+use agave_syscalls::{
+    create_program_runtime_environment_v1, create_program_runtime_environment_v2,
+};
 use solana_account::{
     Account as SolanaAccount, AccountSharedData, ReadableAccount, WritableAccount,
 };
@@ -19,8 +23,8 @@ use solana_pubkey::Pubkey;
 use solana_svm_callback::InvokeContextCallback;
 use solana_svm_log_collector::LogCollector;
 use solana_svm_timings::ExecuteTimings;
-use solana_syscalls::create_program_runtime_environment;
-use solana_transaction_context::transaction::TransactionContext;
+use solana_svm_transaction::instruction::SVMInstruction;
+use solana_transaction_context::{IndexOfAccount, TransactionContext};
 
 use solana_program_pack::Pack;
 use spl_token::state::{Account as SplTokenAccount, Mint as SplMint};
@@ -150,7 +154,7 @@ impl QuasarSvm {
     /// Create a new QuasarSvm instance with custom program loading configuration.
     pub fn new_with_config(config: QuasarSvmConfig) -> Self {
         let feature_set = FeatureSet::all_enabled();
-        let compute_budget = ComputeBudget::new_with_defaults(true);
+        let compute_budget = ComputeBudget::new_with_defaults(true, true);
         let program_cache = ProgramCache::new(&feature_set, &compute_budget);
 
         let svm = Self {
@@ -327,7 +331,6 @@ impl QuasarSvm {
             self.sysvars.rent.clone(),
             self.compute_budget.max_instruction_stack_depth,
             self.compute_budget.max_instruction_trace_length,
-            instructions.len(),
         );
 
         let sysvar_cache = self.sysvars.setup_sysvar_cache(&merged);
@@ -698,16 +701,27 @@ impl QuasarSvm {
         sanitized_message: &SanitizedMessage,
         logs: &[String],
     ) -> ExecutionTrace {
-        // Take the trace: parallel vecs of (frame, instruction_accounts, instruction_data)
-        let (frames, instruction_accounts_vec, instruction_data_vec) =
-            transaction_context.take_instruction_trace();
+        // First, collect instruction data before taking the trace
+        let trace_len = transaction_context.get_instruction_trace_length();
+        let instruction_data_vec: Vec<Vec<u8>> = (0..trace_len)
+            .map(|idx| {
+                transaction_context
+                    .get_instruction_context_at_index_in_trace(idx)
+                    .ok()
+                    .map(|ctx| ctx.get_instruction_data().to_vec())
+                    .unwrap_or_default()
+            })
+            .collect();
+
+        // Now take the trace
+        let instruction_trace = transaction_context.take_instruction_trace();
         let account_keys = sanitized_message.account_keys();
 
         // Parse logs to get per-instruction results and compute units
         let log_results = Self::parse_log_results(logs);
 
         // Build execution trace with full instruction data
-        let instructions: Vec<ExecutedInstruction> = frames
+        let instructions: Vec<ExecutedInstruction> = instruction_trace
             .iter()
             .enumerate()
             .map(|(idx, frame)| {
@@ -717,17 +731,12 @@ impl QuasarSvm {
                     .get(program_id_index)
                     .unwrap_or(&Pubkey::default());
 
-                // Get instruction data from the parallel vec
-                let instruction_data = instruction_data_vec
-                    .get(idx)
-                    .map(|data| data.to_vec())
-                    .unwrap_or_default();
+                // Get instruction data from our pre-collected vec
+                let instruction_data = instruction_data_vec.get(idx).cloned().unwrap_or_default();
 
                 // Build account metas from instruction accounts
-                let accounts: Vec<AccountMeta> = instruction_accounts_vec
-                    .get(idx)
-                    .map(|accounts| accounts.as_ref())
-                    .unwrap_or_default()
+                let accounts: Vec<AccountMeta> = frame
+                    .instruction_accounts
                     .iter()
                     .filter_map(|acc| {
                         let pubkey = account_keys.get(acc.index_in_transaction as usize)?;
@@ -774,13 +783,21 @@ impl QuasarSvm {
         let execution_budget = self.compute_budget.to_budget();
         let runtime_features = self.feature_set.runtime_features();
 
-        let program_runtime_environment =
-            create_program_runtime_environment(&runtime_features, &execution_budget, false, false)
-                .unwrap();
-        let program_runtime_environments = ProgramRuntimeEnvironments::new(
-            program_runtime_environment.clone(),
-            program_runtime_environment,
-        );
+        let program_runtime_environments = ProgramRuntimeEnvironments {
+            program_runtime_v1: Arc::new(
+                create_program_runtime_environment_v1(
+                    &runtime_features,
+                    &execution_budget,
+                    false,
+                    false,
+                )
+                .unwrap(),
+            ),
+            program_runtime_v2: Arc::new(create_program_runtime_environment_v2(
+                &execution_budget,
+                false,
+            )),
+        };
 
         let callback = NoOpCallback;
 
@@ -790,9 +807,9 @@ impl QuasarSvm {
             EnvironmentConfig::new(
                 Hash::default(),
                 5000,
-                false,
                 &callback,
                 &runtime_features,
+                &program_runtime_environments,
                 &program_runtime_environments,
                 sysvar_cache,
             ),
@@ -803,11 +820,18 @@ impl QuasarSvm {
 
         let mut raw_result: Result<(), InstructionError> = Ok(());
 
-        invoke_context
-            .prepare_top_level_instructions(sanitized_message)
-            .expect("failed to prepare instructions");
+        for (_program_id, compiled_ix) in sanitized_message.program_instructions_iter() {
+            let program_id_index = compiled_ix.program_id_index as IndexOfAccount;
 
-        for _ in sanitized_message.program_instructions_iter() {
+            invoke_context
+                .prepare_next_top_level_instruction(
+                    sanitized_message,
+                    &SVMInstruction::from(compiled_ix),
+                    program_id_index,
+                    &compiled_ix.data,
+                )
+                .expect("failed to prepare instruction");
+
             let mut compute_units_consumed_ix = 0u64;
             let invoke_result =
                 invoke_context.process_instruction(&mut compute_units_consumed_ix, &mut timings);
