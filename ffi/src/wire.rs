@@ -35,6 +35,7 @@
 //! ## Result
 //! ```text
 //! [4]   status (i32 LE)
+//! [4]   custom error code (u32 LE; meaningful when status is 1)
 //! [8]   compute_units (u64 LE)
 //! [8]   execution_time_us (u64 LE)
 //! [4]   return_data_len
@@ -55,10 +56,9 @@
 //! [N]   error_message UTF-8 bytes
 //! ```
 
-use quasar_svm::{ExecutionResult, Instruction, Pubkey};
+use quasar_svm::{ExecutionResult, Instruction, ProgramError, Pubkey};
 use solana_account::Account as SolanaAccount;
 use solana_instruction::AccountMeta;
-use solana_program_error::ProgramError;
 
 // ---------------------------------------------------------------------------
 // Reader
@@ -242,34 +242,28 @@ pub fn deserialize_accounts(data: &[u8]) -> Result<Vec<(Pubkey, SolanaAccount)>,
 // Serialization
 // ---------------------------------------------------------------------------
 
-fn program_error_to_i32(err: &ProgramError) -> i32 {
+fn program_error_status(err: &ProgramError) -> (i32, u32) {
     match err {
-        ProgramError::Custom(n) => *n as i32,
-        ProgramError::InvalidArgument => -1,
-        ProgramError::InvalidInstructionData => -2,
-        ProgramError::InvalidAccountData => -3,
-        ProgramError::AccountDataTooSmall => -4,
-        ProgramError::InsufficientFunds => -5,
-        ProgramError::IncorrectProgramId => -6,
-        ProgramError::MissingRequiredSignature => -7,
-        ProgramError::AccountAlreadyInitialized => -8,
-        ProgramError::UninitializedAccount => -9,
-        ProgramError::NotEnoughAccountKeys => -10,
-        ProgramError::AccountBorrowFailed => -11,
-        ProgramError::MaxSeedLengthExceeded => -12,
-        ProgramError::InvalidSeeds => -13,
-        ProgramError::BorshIoError => -14,
-        ProgramError::AccountNotRentExempt => -15,
-        ProgramError::UnsupportedSysvar => -16,
-        ProgramError::IllegalOwner => -17,
-        ProgramError::MaxAccountsDataAllocationsExceeded => -18,
-        ProgramError::InvalidRealloc => -19,
-        ProgramError::MaxInstructionTraceLengthExceeded => -20,
-        ProgramError::BuiltinProgramsMustConsumeComputeUnits => -21,
-        ProgramError::InvalidAccountOwner => -22,
-        ProgramError::ArithmeticOverflow => -23,
-        ProgramError::Immutable => -24,
-        ProgramError::IncorrectAuthority => -25,
+        ProgramError::Custom(code) => (1, *code),
+        ProgramError::InvalidArgument => (-1, 0),
+        ProgramError::InvalidInstructionData => (-2, 0),
+        ProgramError::InvalidAccountData => (-3, 0),
+        ProgramError::AccountDataTooSmall => (-4, 0),
+        ProgramError::InsufficientFunds => (-5, 0),
+        ProgramError::IncorrectProgramId => (-6, 0),
+        ProgramError::MissingRequiredSignature => (-7, 0),
+        ProgramError::AccountAlreadyInitialized => (-8, 0),
+        ProgramError::UninitializedAccount => (-9, 0),
+        ProgramError::MissingAccount => (-10, 0),
+        ProgramError::InvalidSeeds => (-13, 0),
+        ProgramError::BorshIoError => (-14, 0),
+        ProgramError::AccountNotRentExempt => (-15, 0),
+        ProgramError::ComputeBudgetExceeded => (-21, 0),
+        ProgramError::InvalidAccountOwner => (-22, 0),
+        ProgramError::ArithmeticOverflow => (-23, 0),
+        ProgramError::Immutable => (-24, 0),
+        ProgramError::IncorrectAuthority => (-25, 0),
+        ProgramError::Runtime(_) => (-26, 0),
     }
 }
 
@@ -278,19 +272,21 @@ fn program_error_to_i32(err: &ProgramError) -> i32 {
 pub fn serialize_result(result: &ExecutionResult) -> Box<[u8]> {
     let mut w = Writer::new();
 
-    let (status, error_message) = match &result.raw_result {
-        Ok(()) => (0i32, None),
+    let (status, custom_error_code, error_message) = match &result.raw_result {
+        Ok(()) => (0i32, 0, None),
         Err(err) => {
-            let code = if let Ok(program_error) = ProgramError::try_from(err.clone()) {
-                program_error_to_i32(&program_error)
-            } else {
-                -1
+            let program_error = ProgramError::from(err.clone());
+            let (status, custom_error_code) = program_error_status(&program_error);
+            let message = match program_error {
+                ProgramError::Runtime(message) => message,
+                _ => format!("{err:?}"),
             };
-            (code, Some(format!("{err:?}")))
+            (status, custom_error_code, Some(message))
         }
     };
 
     w.write_i32(status);
+    w.write_u32(custom_error_code);
     w.write_u64(result.compute_units_consumed);
     w.write_u64(result.execution_time_us);
 
@@ -397,4 +393,26 @@ pub fn serialize_result(result: &ExecutionResult) -> Box<[u8]> {
     }
 
     w.into_boxed_slice()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stable_error_status_preserves_runtime_and_full_custom_codes() {
+        assert_eq!(
+            program_error_status(&ProgramError::ComputeBudgetExceeded),
+            (-21, 0)
+        );
+        assert_eq!(program_error_status(&ProgramError::Custom(0)), (1, 0));
+        assert_eq!(
+            program_error_status(&ProgramError::Custom(u32::MAX)),
+            (1, u32::MAX)
+        );
+        assert_eq!(
+            program_error_status(&ProgramError::Runtime("opaque".into())),
+            (-26, 0)
+        );
+    }
 }

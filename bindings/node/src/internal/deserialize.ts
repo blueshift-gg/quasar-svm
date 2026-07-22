@@ -16,6 +16,7 @@ export function deserializeResult(data: Buffer): InternalResult {
   let o = 0;
 
   const rawStatus = data.readInt32LE(o); o += 4;
+  const customErrorCode = data.readUInt32LE(o); o += 4;
   const computeUnits = data.readBigUInt64LE(o); o += 8;
   const executionTimeUs = data.readBigUInt64LE(o); o += 8;
 
@@ -140,7 +141,10 @@ export function deserializeResult(data: Buffer): InternalResult {
   const status: ExecutionStatus =
     rawStatus === 0
       ? { ok: true as const }
-      : { ok: false as const, error: programErrorFromStatus(rawStatus, errorMessage) };
+      : {
+          ok: false as const,
+          error: programErrorFromStatus(rawStatus, errorMessage, customErrorCode),
+        };
 
   return {
     status,

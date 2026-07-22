@@ -4,17 +4,17 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use agave_feature_set::FeatureSet;
+use agave_syscalls::create_program_runtime_environment_v1;
 use solana_account::Account;
 use solana_compute_budget::compute_budget::ComputeBudget;
 use solana_loader_v3_interface::state::UpgradeableLoaderState;
-use solana_program_runtime::invoke_context::BuiltinFunctionRegisterer;
-use solana_program_runtime::loaded_programs::{ProgramCacheForTxBatch, ProgramRuntimeEnvironment};
-use solana_program_runtime::program_cache_entry::ProgramCacheEntry;
-use solana_program_runtime::program_metrics::LoadProgramMetrics;
-use solana_program_runtime::solana_sbpf::program::{BuiltinFunctionDefinition, BuiltinProgram};
+use solana_program_runtime::invoke_context::{BuiltinFunctionWithContext, InvokeContext};
+use solana_program_runtime::loaded_programs::{
+    LoadProgramMetrics, ProgramCacheEntry, ProgramCacheForTxBatch,
+};
+use solana_program_runtime::solana_sbpf::program::BuiltinProgram;
 use solana_pubkey::Pubkey;
 use solana_rent::Rent;
-use solana_syscalls::create_program_runtime_environment;
 
 pub mod loader_keys {
     pub use solana_sdk_ids::{
@@ -31,13 +31,13 @@ struct CacheEntry {
 pub struct ProgramCache {
     cache: Rc<RefCell<ProgramCacheForTxBatch>>,
     entries: Rc<RefCell<HashMap<Pubkey, CacheEntry>>>,
-    pub runtime_environment: ProgramRuntimeEnvironment,
+    pub runtime_environment: BuiltinProgram<InvokeContext<'static, 'static>>,
 }
 
 struct Builtin {
     program_id: Pubkey,
     name: &'static str,
-    entrypoint: BuiltinFunctionRegisterer,
+    entrypoint: BuiltinFunctionWithContext,
 }
 
 impl Builtin {
@@ -54,17 +54,17 @@ static BUILTINS: &[Builtin] = &[
     Builtin {
         program_id: solana_system_program::id(),
         name: "system_program",
-        entrypoint: solana_system_program::system_processor::Entrypoint::register,
+        entrypoint: solana_system_program::system_processor::Entrypoint::vm,
     },
     Builtin {
         program_id: loader_keys::LOADER_V2,
         name: "solana_bpf_loader_program",
-        entrypoint: solana_bpf_loader_program::Entrypoint::register,
+        entrypoint: solana_bpf_loader_program::Entrypoint::vm,
     },
     Builtin {
         program_id: loader_keys::LOADER_V3,
         name: "solana_bpf_loader_upgradeable_program",
-        entrypoint: solana_bpf_loader_program::Entrypoint::register,
+        entrypoint: solana_bpf_loader_program::Entrypoint::vm,
     },
 ];
 
@@ -73,7 +73,7 @@ impl ProgramCache {
         let me = Self {
             cache: Rc::new(RefCell::new(ProgramCacheForTxBatch::default())),
             entries: Rc::new(RefCell::new(HashMap::new())),
-            runtime_environment: create_program_runtime_environment(
+            runtime_environment: create_program_runtime_environment_v1(
                 &feature_set.runtime_features(),
                 &compute_budget.to_budget(),
                 false,
@@ -109,7 +109,7 @@ impl ProgramCache {
                 let name = std::str::from_utf8(name).unwrap();
                 loader.register_function(name, value).unwrap();
             }
-            ProgramRuntimeEnvironment::from(loader)
+            Arc::new(loader)
         };
         self.replenish(
             *program_id,
