@@ -18,7 +18,7 @@ include = [
 
 [lib]
 name = "quasar_svm"
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
 quasar-svm = { path = "../svm" }

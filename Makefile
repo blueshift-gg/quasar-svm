@@ -5,9 +5,11 @@ PLATFORMS := darwin-arm64 darwin-x64 linux-x64-gnu linux-arm64-gnu win32-x64-msv
 RUST_TARGETS := aarch64-apple-darwin x86_64-apple-darwin x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu x86_64-pc-windows-gnu
 
 PYTHON_DIR := bindings/python
+GO_DIR := bindings/go
 
 .PHONY: build build-all clean copy-binary prepublish publish publish-platform version
 .PHONY: build-python-wheel publish-python clean-python link-python link-node dev-setup
+.PHONY: test-go link-go clean-go build-go-all build-go-local clean-go-libs
 
 build:
 	cargo build --release -p quasar-svm-ffi
@@ -15,9 +17,9 @@ build:
 
 # Development setup: Create symlinks instead of copying binaries.
 # This makes development faster - build once, all bindings see the update.
-dev-setup: link-python link-node
+dev-setup: link-python link-node link-go
 	@echo "✅ Development environment ready!"
-	@echo "   Python and TypeScript bindings now use symlinks to target/release/"
+	@echo "   Python, TypeScript, and Go bindings now use symlinks to target/release/"
 	@echo "   Just run 'cargo build --release' and all bindings are updated."
 
 # Create symlink for Python bindings (development only).
@@ -59,6 +61,66 @@ else
 	@echo "✅ Node.js: Linked libquasar_svm.so"
 endif
 
+# Create symlink for Go bindings (development only).
+# Go uses CGo with -lquasar_svm, so we symlink the library into the Go dir
+# so the rpath in the #cgo directive resolves correctly.
+link-go:
+	@echo "Setting up Go bindings..."
+	@cd $(GO_DIR) && go mod tidy
+	@echo "✅ Go: Ready (CGo links against target/release/ via rpath)"
+
+# Run Go binding tests (dev mode — links against target/release/).
+test-go: build
+	cd $(GO_DIR) && go test -tags quasar_dev -v -count=1 .
+
+# Run Go binding tests without rebuilding the native library.
+test-go-only:
+	cd $(GO_DIR) && go test -tags quasar_dev -v -count=1 .
+
+# Clean Go build cache for this module.
+clean-go:
+	cd $(GO_DIR) && go clean -cache -testcache
+
+# Build Go bindings with vendored static libraries for all platforms.
+# This copies prebuilt .a files into libquasar_svm_vendor/ so consumers
+# can `go get` without needing Rust/Cargo or any runtime dependencies.
+build-go-all:
+	@echo "Copying static libraries into Go vendor directory..."
+	cp target/aarch64-apple-darwin/release/libquasar_svm.a  $(GO_DIR)/libquasar_svm_vendor/libquasar_svm_darwin_arm64.a
+	cp target/x86_64-apple-darwin/release/libquasar_svm.a   $(GO_DIR)/libquasar_svm_vendor/libquasar_svm_darwin_amd64.a
+	cp target/x86_64-unknown-linux-gnu/release/libquasar_svm.a $(GO_DIR)/libquasar_svm_vendor/libquasar_svm_linux_amd64.a
+	cp target/aarch64-unknown-linux-gnu/release/libquasar_svm.a $(GO_DIR)/libquasar_svm_vendor/libquasar_svm_linux_arm64.a
+	cp target/x86_64-pc-windows-gnu/release/libquasar_svm.a $(GO_DIR)/libquasar_svm_vendor/libquasar_svm_windows_amd64.a
+	@echo "✅ Go: Static libraries vendored for all platforms"
+	@ls -lh $(GO_DIR)/libquasar_svm_vendor/*.a
+
+# Copy the current platform's static library into the Go vendor directory.
+build-go-local: build
+ifeq ($(shell uname -s),Darwin)
+ifeq ($(shell uname -m),arm64)
+	cp target/release/libquasar_svm.a $(GO_DIR)/libquasar_svm_vendor/libquasar_svm_darwin_arm64.a
+	@echo "✅ Go: Vendored libquasar_svm.a (darwin/arm64)"
+else
+	cp target/release/libquasar_svm.a $(GO_DIR)/libquasar_svm_vendor/libquasar_svm_darwin_amd64.a
+	@echo "✅ Go: Vendored libquasar_svm.a (darwin/amd64)"
+endif
+else ifeq ($(OS),Windows_NT)
+	cp target/release/libquasar_svm.a $(GO_DIR)/libquasar_svm_vendor/libquasar_svm_windows_amd64.a
+	@echo "✅ Go: Vendored libquasar_svm.a (windows/amd64)"
+else
+ifeq ($(shell uname -m),aarch64)
+	cp target/release/libquasar_svm.a $(GO_DIR)/libquasar_svm_vendor/libquasar_svm_linux_arm64.a
+	@echo "✅ Go: Vendored libquasar_svm.a (linux/arm64)"
+else
+	cp target/release/libquasar_svm.a $(GO_DIR)/libquasar_svm_vendor/libquasar_svm_linux_amd64.a
+	@echo "✅ Go: Vendored libquasar_svm.a (linux/amd64)"
+endif
+endif
+
+# Clean Go vendored static libraries.
+clean-go-libs:
+	rm -f $(GO_DIR)/libquasar_svm_vendor/*.a
+
 # Build native libraries for all platforms, copy to package root + npm dirs.
 build-all:
 	cargo build --release -p quasar-svm-ffi --target aarch64-apple-darwin
@@ -76,6 +138,11 @@ build-all:
 	cp target/x86_64-unknown-linux-gnu/release/libquasar_svm.so npm/linux-x64-gnu/libquasar_svm.so
 	cp target/aarch64-unknown-linux-gnu/release/libquasar_svm.so npm/linux-arm64-gnu/libquasar_svm.so
 	cp target/x86_64-pc-windows-gnu/release/quasar_svm.dll      npm/win32-x64-msvc/quasar_svm.dll
+	cp target/aarch64-apple-darwin/release/libquasar_svm.a  $(GO_DIR)/libquasar_svm_vendor/libquasar_svm_darwin_arm64.a
+	cp target/x86_64-apple-darwin/release/libquasar_svm.a   $(GO_DIR)/libquasar_svm_vendor/libquasar_svm_darwin_amd64.a
+	cp target/x86_64-unknown-linux-gnu/release/libquasar_svm.a $(GO_DIR)/libquasar_svm_vendor/libquasar_svm_linux_amd64.a
+	cp target/aarch64-unknown-linux-gnu/release/libquasar_svm.a $(GO_DIR)/libquasar_svm_vendor/libquasar_svm_linux_arm64.a
+	cp target/x86_64-pc-windows-gnu/release/libquasar_svm.a $(GO_DIR)/libquasar_svm_vendor/libquasar_svm_windows_amd64.a
 	npx tsc
 	@echo "All platform binaries built and copied."
 
